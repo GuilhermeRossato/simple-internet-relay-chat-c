@@ -2,14 +2,25 @@
 
 // Data Node Interface
 
-irc_node * irc_create_node(enum irc_node_type type, int owner, unsigned char * mac, char * name)
-irc_node * irc_search_node_by_mac(enum irc_node_type type, char * mac);
+int irc_get_node_count(enum irc_node_type type);
+irc_node * irc_create_node(enum irc_node_type type, int owner, char * origin, char * name);
+irc_node * irc_search_node_by_origin(enum irc_node_type type, char * origin);
 irc_node * irc_search_node_by_name(enum irc_node_type type, char * name);
-irc_node * irc_search_node_by_mac_and_name(enum irc_node_type type, char * mac, char * name);
+irc_node * irc_search_node_by_origin_and_name(enum irc_node_type type, char * origin, char * name);
 irc_node * irc_search_node_by_owner(enum irc_node_type type, int owner);
 irc_node * irc_destroy_node(irc_node * node);
 
 // Data Node Implementation
+
+int irc_get_node_count(enum irc_node_type type) {
+	irc_node * node = &irc_root_node;
+	int result = 0;
+	while (node) {
+		result++;
+		node = node->next;
+	}
+	return result;
+}
 
 irc_node * _irc_search_node_by_next(irc_node * last) {
 	irc_node * node = &irc_root_node;
@@ -19,10 +30,10 @@ irc_node * _irc_search_node_by_next(irc_node * last) {
 	return node;
 }
 
-irc_node * irc_search_node_by_mac(enum irc_node_type type, char * mac) {
+irc_node * irc_search_node_by_origin(enum irc_node_type type, char * origin) {
 	irc_node * node = &irc_root_node;
 	while (node) {
-		if (node->type == type && _irc_compare_two_strings(node->mac, mac, 6)) {
+		if (node->type == type && _irc_compare_two_strings(node->origin, origin, IRC_BUFFER_SIZE)) {
 			return node;
 		}
 		node = node->next;
@@ -41,13 +52,13 @@ irc_node * irc_search_node_by_name(enum irc_node_type type, char * name) {
 	return 0;
 }
 
-irc_node * irc_search_node_by_mac_and_name(enum irc_node_type type, char * mac, char * name) {
+irc_node * irc_search_node_by_origin_and_name(enum irc_node_type type, char * origin, char * name) {
 	irc_node * node = &irc_root_node;
 	while (node) {
 		if (
 			node->type == type &&
 			_irc_compare_two_strings(node->name, name, IRC_BUFFER_SIZE) &&
-			_irc_compare_two_strings(node->mac, mac, 6)
+			_irc_compare_two_strings(node->origin, origin, IRC_BUFFER_SIZE)
 		) {
 			return node;
 		}
@@ -67,7 +78,7 @@ irc_node * irc_search_node_by_owner(enum irc_node_type type, int owner) {
 	return 0;
 }
 
-irc_node * irc_create_node(enum irc_node_type type, int owner, unsigned char * mac, char * name) {
+irc_node * irc_create_node(enum irc_node_type type, int owner, char * origin, char * name) {
 	if (type == irc_none) {
 		return irc_error_invalid_something("type");
 	}
@@ -90,8 +101,8 @@ irc_node * irc_create_node(enum irc_node_type type, int owner, unsigned char * m
 		node->owner = 0;
 	}
 
-	if (mac) {
-		strncpy(node->mac, mac, 6);
+	if (origin) {
+		strncpy(node->origin, origin, IRC_BUFFER_SIZE);
 	} else {
 		node->name[0] = '\0';
 	}

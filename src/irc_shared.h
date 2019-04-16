@@ -15,7 +15,7 @@ enum irc_node_type {
 typedef struct irc_node {
 	enum irc_node_type type;
 	int owner;
-	unsigned char mac[6];
+	char origin[IRC_BUFFER_SIZE];
 	char name[IRC_BUFFER_SIZE];
 	struct irc_node * next;
 } irc_node;

@@ -50,5 +50,8 @@ int irc_error_malloc_failed(char * context) {
 	printf("IRC Error: Malloc failed at %s\n", context);
 	return 0;
 }
-
+int irc_error_could_not(char * thing) {
+	printf("IRC Error: Could not %s due to an error result", thing);
+	return 0;
+}
 #endif

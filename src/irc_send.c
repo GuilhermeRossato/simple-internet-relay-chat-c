@@ -13,17 +13,25 @@
 #include <netdb.h>
 #include "../raw/raw.h"
 
-#ifndef NI_MAXHOST
-	#define NI_MAXHOST	64
-#endif
-#ifndef NI_NUMERICHOST
-	#define NI_NUMERICHOST	64
-#endif
+// Send Interface
 
-char this_mac[6];
+/**
+ * Sends a IRC broadcast message through an interface
+ *
+ * @param interface  The interface to be used for sending the message
+ * @param message    The message as null-terminated text to be sent
+ *
+ * @return           Success Indicator (1 when succeded, 0 when it fails)
+ */
+int irc_send(char * interface, char * message);
+
+// Send Implementation
+
+#define DEBUG_SEND 1
+#define debug_print_send(fmt, ...) \
+        do { if (DEBUG_SEND) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); } while (0)
+
 char bcast_mac[6] =	{0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-char dst_mac[6] =	{0x00, 0x00, 0x00, 0x22, 0x22, 0x22};
-char src_mac[6] =	{0x00, 0x00, 0x00, 0x33, 0x33, 0x33};
 
 union eth_buffer buffer_u;
 
@@ -50,7 +58,7 @@ int _irc_is_string_mac(char * mac) {
 			return 0;
 		}
 
-		if (!is_number && !is_letter) {
+		if (!is_number && !is_letter && !is_separator) {
 			return 0;
 		}
 	}
@@ -73,131 +81,131 @@ int _irc_is_string_ip(char * ip) {
 	return 1;
 }
 
-int _irc_mac_to_binary(char * mac, unsigned int * binary_mac) {
+int _irc_mac_to_binary(char * mac, uint8_t * binary_mac) {
 	if (!_irc_is_string_mac(mac)) {
+		printf("mac is already binary: %c %c %c", mac[0], mac[1], mac[2]);
 		memcpy(binary_mac, mac, 6);
 		return 1;
 	}
-	sscanf(mac,"%x:%x:%x:%x:%x:%x",&binary_mac[0],&binary_mac[1],&binary_mac[2],&binary_mac[3],&binary_mac[4],&binary_mac[5]);
+	sscanf(mac,"%x:%x:%x:%x:%x:%x", (unsigned int *) &binary_mac[0], (unsigned int *) &binary_mac[1], (unsigned int *) &binary_mac[2], (unsigned int *) &binary_mac[3], (unsigned int *) &binary_mac[4], (unsigned int *) &binary_mac[5]);
 	return 1;
 }
 
-int _irc_ip_to_binary(char * ip, unsigned char * binary_ip) {
+int _irc_ip_to_binary(char * ip, uint8_t * binary_ip) {
 	if (!_irc_is_string_ip(ip)) {
 		memcpy(binary_ip, ip, 6);
 		return 1;
 	}
-	sscanf(ip,"%d.%d.%d.%d",(int *) &binary_ip[0],(int *) &binary_ip[1],(int *) &binary_ip[2],(int *) &binary_ip[3]);
+	sscanf(ip,"%d.%d.%d.%d", (unsigned int *) &binary_ip[0], (unsigned int *) &binary_ip[1], (unsigned int *) &binary_ip[2], (unsigned int *) &binary_ip[3]);
 	return 1;
 }
 
 int _irc_send_udp_packet(
 	char * interface_name,
+
+	uint8_t * binary_origin_mac,
+	uint8_t * binary_origin_ip,
 	int origin_port,
-	int target_port,
+
 	uint8_t * binary_target_mac,
 	uint8_t * binary_target_ip,
-	char * message
+	int target_port,
+
+	unsigned char * message,
+	int message_size
 );
 
 int irc_send_udp_data(
 	char * interface,
+
+	uint8_t * origin_mac,
+	uint8_t * origin_ip,
 	int origin_port,
+
+	uint8_t * target_mac,
+	uint8_t * target_ip,
 	int target_port,
-	char * target_mac,
-	char * target_ip,
-	char * message
+
+	unsigned char * message,
+	int message_size
 ) {
-	uint8_t binary_mac[6+1];
-	uint8_t binary_ip[4+1];
+	uint8_t binary_origin_mac[6+1];
+	uint8_t binary_origin_ip[4+1];
 
-	_irc_mac_to_binary(target_mac, (unsigned int *) binary_mac);
-	_irc_ip_to_binary(target_ip, (char *) binary_ip);
+	uint8_t binary_target_mac[6+1];
+	uint8_t binary_target_ip[4+1];
 
-	printf("Sending to:\n");
-	printf("Mac : %02x:%02x:%02x:%02x...\n", binary_mac[0], binary_mac[1], binary_mac[2], binary_mac[3]);
-	printf("Ip  : %d.%d.%d.%d\n", binary_ip[0], binary_ip[1], binary_ip[2], binary_ip[3]);
-	printf("Port: %d\n", target_port);
+	_irc_mac_to_binary(origin_mac, (uint8_t *) binary_origin_mac);
+	_irc_ip_to_binary(origin_ip, (uint8_t *) binary_origin_ip);
+	_irc_mac_to_binary(target_mac, (uint8_t *) binary_target_mac);
+	_irc_ip_to_binary(target_ip, (uint8_t *) binary_target_ip);
 
-	return _irc_send_udp_packet(interface, origin_port, target_port, binary_mac, binary_ip, message);
+	return _irc_send_udp_packet(
+		interface,
+
+		binary_origin_mac,
+		binary_origin_ip,
+		origin_port,
+
+		binary_target_mac,
+		binary_target_ip,
+		target_port,
+
+		message,
+		message_size
+	);
 }
 
 int _irc_send_udp_packet(
 	char * interface_name,
+
+	uint8_t * binary_origin_mac,
+	uint8_t * binary_origin_ip,
 	int origin_port,
-	int target_port,
+
 	uint8_t * binary_target_mac,
 	uint8_t * binary_target_ip,
-	char * message
-) {
-	struct ifreq if_idx, if_mac, if_ip, ifopts;
-	struct sockaddr_ll socket_address;
-	int sockfd, numbytes;
-	uint8_t * msg = message;
-    int message_buffer_size = strlen(msg)+1;
-    int op_result;
-    uint8_t binary_origin_mac[6+1];
-    uint8_t binary_origin_ip[4+1];
-	char origin_name[NI_MAXHOST];
+	int target_port,
 
-	/* Open RAW socket */
+	unsigned char * message,
+	int message_size
+) {
+
+	struct ifreq if_idx, ifopts, if_ip;
+	struct sockaddr_ll socket_address;
+	int sockfd;
+	uint8_t * msg = message;
+    int message_buffer_size = message_size;
+
 	sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 	if (sockfd == -1) {
-		return irc_error_could_not("create socket");
+		return irc_error_could_not("open socket");
 	}
 
-	printf("Setting interface: ");
+	int op_result;
+
 	strncpy(ifopts.ifr_name, interface_name, IFNAMSIZ-1);
 	op_result = ioctl(sockfd, SIOCGIFFLAGS, &ifopts);
-	printf("%d\n", op_result);
+	debug_print_send("Setting interface: %d\n", op_result);
 
-	printf("Setting promiscuous mode: ");
 	ifopts.ifr_flags |= IFF_PROMISC;
 	op_result = ioctl(sockfd, SIOCSIFFLAGS, &ifopts);
-	printf("%d\n", op_result);
+	debug_print_send("Setting promiscuous mode: %d\n", op_result);
 
-	printf("Getting the index of the interface: ");
 	memset(&if_idx, 0, sizeof(struct ifreq));
 	strncpy(if_idx.ifr_name, interface_name, IFNAMSIZ-1);
 	op_result = ioctl(sockfd, SIOCGIFINDEX, &if_idx);
-	printf("%d\n", op_result);
+	debug_print_send("Getting the index of the interface: %d\n", op_result);
 	if (op_result < 0) {
-		return irc_error_could_not("get index from interface name");
+		return irc_error_could_not("get the index of the interface");
 	}
 	socket_address.sll_ifindex = if_idx.ifr_ifindex;
 	socket_address.sll_halen = ETH_ALEN;
 
-	/* Get the MAC address of the interface */
-	printf("Getting the MAC of the interface: ");
-	memset(&if_mac, 0, sizeof(struct ifreq));
-	strncpy(if_mac.ifr_name, interface_name, IFNAMSIZ-1);
-	op_result = ioctl(sockfd, SIOCGIFHWADDR, &if_mac);
-	printf("%d\n", op_result);
-	if (op_result < 0) {
-		return irc_error_could_not("get mac from interface (SIOCGIFHWADDR)");
-	}
-	memcpy(binary_origin_mac, if_mac.ifr_hwaddr.sa_data, 6);
-
-	printf("Getting the IP of the interface: ");
-	memset(&if_ip, 0, sizeof(struct ifreq));
-	strncpy(if_ip.ifr_name, interface_name, IFNAMSIZ-1);
- 	op_result = ioctl(sockfd, SIOCGIFADDR, &if_ip);
- 	printf("%d\n", op_result);
-
- 	char ipv4_string[64];
- 	snprintf(ipv4_string, 64, "%s", inet_ntoa(((struct sockaddr_in *)&if_ip.ifr_addr)->sin_addr));
-
-	_irc_ip_to_binary(ipv4_string, (char *) binary_origin_ip);
-	printf("src IP: %d.%d.%d.%d\n", binary_origin_ip[0], binary_origin_ip[1], binary_origin_ip[2], binary_origin_ip[3]);
-	printf("dst IP: %d.%d.%d.%d\n", binary_target_ip[0], binary_target_ip[1], binary_target_ip[2], binary_target_ip[3]);
-
-
-	/* Fill the Ethernet frame header */
-	memcpy(buffer_u.cooked_data.ethernet.dst_addr, binary_target_mac, 6);
+	memcpy(buffer_u.cooked_data.ethernet.dst_addr, bcast_mac, 6);
 	memcpy(buffer_u.cooked_data.ethernet.src_addr, binary_origin_mac, 6);
 	buffer_u.cooked_data.ethernet.eth_type = htons(ETH_P_IP);
 
-	/* Fill IP header data. Fill all fields and a zeroed CRC field, then update the CRC */
 	buffer_u.cooked_data.payload.ip.ver = 0x45;
 	buffer_u.cooked_data.payload.ip.tos = 0x00;
 	buffer_u.cooked_data.payload.ip.len = htons(sizeof(struct ip_hdr) + sizeof(struct udp_hdr) + message_buffer_size);
@@ -218,7 +226,6 @@ int _irc_send_udp_packet(
 	buffer_u.cooked_data.payload.ip.dst[3] = binary_target_ip[3];
 	buffer_u.cooked_data.payload.ip.sum = htons((~irc_ipchksum((uint8_t *)&buffer_u.cooked_data.payload.ip) & 0xffff));
 
-	/* Fill UDP header */
 	buffer_u.cooked_data.payload.udp.udphdr.src_port = htons(origin_port);
 	buffer_u.cooked_data.payload.udp.udphdr.dst_port = htons(target_port);
 	buffer_u.cooked_data.payload.udp.udphdr.udp_len = htons(sizeof(struct udp_hdr) + message_buffer_size);
@@ -227,11 +234,33 @@ int _irc_send_udp_packet(
 	/* Fill UDP payload */
 	memcpy(buffer_u.raw_data + sizeof(struct eth_hdr) + sizeof(struct ip_hdr) + sizeof(struct udp_hdr), msg, message_buffer_size);
 
-	/* Send it.. */
-	memcpy(socket_address.sll_addr, dst_mac, 6);
+	//printf("target mac: %02X:%02X:%02X:%02X:%02X:%02X\n", binary_target_mac[0], binary_target_mac[1], binary_target_mac[2], binary_target_mac[3], binary_target_mac[4], binary_target_mac[5]);
+	memcpy(socket_address.sll_addr, binary_target_mac, 6);
 	if (sendto(sockfd, buffer_u.raw_data, sizeof(struct eth_hdr) + sizeof(struct ip_hdr) + sizeof(struct udp_hdr) + message_buffer_size, 0, (struct sockaddr*)&socket_address, sizeof(struct sockaddr_ll)) < 0) {
 		printf("Send failed\n");
 	}
-
 	return 0;
+}
+
+int irc_send(char * interface, char * message) {
+	int length = strlen(message) + 1;
+	int buffer_size = length + 4 + 1;
+
+	char * buffer = (char *) malloc((sizeof(char) * buffer_size));
+	snprintf(buffer, buffer_size-1, "IRC%s", message);
+	buffer[buffer_size-1] = '\0';
+
+	irc_send_udp_data(
+		interface,
+		"FF:FF:FF:FF:FF:FF",
+		"255.255.255.255",
+		8080,
+		"FF:FF:FF:FF:FF:FF",
+		"255.255.255.255",
+		8080,
+		buffer,
+		buffer_size
+	);
+
+	free(buffer);
 }

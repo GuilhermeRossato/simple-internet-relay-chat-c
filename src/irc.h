@@ -6,6 +6,7 @@
 #include "irc_channel.c"
 #include "irc_listen.c"
 #include "irc_send.c"
+#include "irc_server.c"
 
 // IRC Interface
 

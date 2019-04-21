@@ -35,16 +35,7 @@ int main(int argn, char ** argc) {
 		exit(1);
 	}
 
-	printf("Interface: %s [%02x:%02x:%02x:%02x:%02x:%02x]\n", interface_name, origin_mac[0], origin_mac[1], origin_mac[2], origin_mac[3], origin_mac[4], origin_mac[5]);
-
-	irc_send_udp_data(
-		interface_name,
-		8080,
-		8080,
-		origin_mac,
-		"255.255.255.255",
-		"Hello World"
-	);
+	irc_send(interface_name, "Hello World");
 
 	return 0;
 }

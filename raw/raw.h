@@ -1,6 +1,6 @@
 #define ETH_LEN	1518
 #define ETHER_TYPE	0x0800
-#define DEFAULT_IF	"enp2s0"
+#define DEFAULT_IF	"lo"
 
 struct eth_hdr {
 	uint8_t dst_addr[6];

@@ -1,8 +1,3 @@
-/*--------------------------------------------------------*/
-/* DHCP Spoofer - Captura pacotes ethernet, encontra DNS  */
-/*  e responde solicitacoes de dns como um server.        */
-/*--------------------------------------------------------*/
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -10,9 +5,6 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <unistd.h>
-
-/* Diretorios: net, netinet, linux contem os includes que descrevem */
-/* as estruturas de dados do header dos protocolos   	  	        */
 
 #include <net/if.h>  //estrutura ifr
 #include <netinet/ether.h> //header ethernet
@@ -27,7 +19,7 @@
 #define BUFFSIZE 1518
 #define DEBUG 1
 
-unsigned char buff1[BUFFSIZE]; // buffer de recepcao
+unsigned char ebuffer[BUFFSIZE]; // buffer de recepcao
 
 int sockd;
 
@@ -41,11 +33,11 @@ typedef struct {
 
 typedef enum {
 	Eth_UNKNOWN,
-	Eth_RAW_ETHERNET,
-	Eth_IPv4,
-	Eth_IPv6,
-	Eth_ARP,
-	Eth_IPX
+	Eth_RAW_ETHERNET = 1500,
+	Eth_IPv4 = 0x0800,
+	Eth_IPv6 = 0x86dd,
+	Eth_ARP = 0x0806,
+	Eth_IPX = 0x8137
 } ethernet_content_type;
 
 int is_broadcast_mac(char target[6]) {
@@ -79,13 +71,9 @@ void print_bits_of_data(size_t const size, void const * const ptr) {
 }
 
 int on_bootstrap_received(char * bootstrap, int data_length) {
-	char transaction_id[4];
 	char client_mac_address[6];
 
-	memcpy(transaction_id, bootstrap+4, 4);
-	memcpy(client_mac_address, bootstrap+28, 6);
-
-	printf("      [Bootp] Unknown data:\n");
+	printf("      [Bootp] Unknown data %d:\n", data_length);
 	printf(
 		"      (0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x)\n",
 		bootstrap[0] & 0xFF,
@@ -101,18 +89,18 @@ int on_bootstrap_received(char * bootstrap, int data_length) {
 	return 1;
 }
 
-void on_udp_received(char * udp_data, int data_length) {
-	int source_port = (udp_data[0] & 0xff << 8) + udp_data[1] & 0xff;
-	int target_port = (udp_data[2] & 0xff << 8) + udp_data[3] & 0xff;
-	int total_length = (udp_data[4] & 0xff << 8) + udp_data[5] & 0xff;
+void on_udp_received(unsigned char * udp_data, int data_length) {
+	int source_port = ((int) ((int) udp_data[0] & 0xff) << 8) + ((int) udp_data[1] & 0xff);
+	int target_port = ((int) ((int) udp_data[2] & 0xff) << 8) + ((int) udp_data[3] & 0xff);
+	int total_length = ((int) (udp_data[4] & 0xff) << 8) + udp_data[5] & 0xff;
 	printf("    [UDP] Size: %5d - Source Port: %5d - Target Port %5d\n", total_length, source_port, target_port);
 	on_bootstrap_received(udp_data + 8, data_length - 8);
 }
 
-void on_ipv4_broadcast(char * ipv4_data, int data_length) {
+void on_ipv4_broadcast(unsigned char * ipv4_data, int data_length) {
 	int ip_version = ipv4_data[0] & 0xf0 >> 2;
 	int header_length = (ipv4_data[0] & 0x0f)*4;
-	int total_length = (ipv4_data[2] & 0xff << 8) + ipv4_data[3] & 0xff;
+	int total_length = ((ipv4_data[2] & 0xff) << 8) + (int) ipv4_data[3] & 0xff;
 	if (ip_version != 4) {
 		printf("Erro: Pacote IPv4 nao deveria ter versao %d\n", ip_version);
 		printf("Inicio do IPv4: 0x%2x 0x%2x 0x%2x 0x%2x 0x%2x 0x%2x\n", ipv4_data[0] & 0xff, ipv4_data[1] & 0xff, ipv4_data[2] & 0xff, ipv4_data[3] & 0xff, ipv4_data[4] & 0xff, ipv4_data[5] & 0xff);
@@ -139,22 +127,22 @@ void on_ipv4_broadcast(char * ipv4_data, int data_length) {
 	}
 }
 
-void on_ethernet_package_received(char target[6], char origin[6], ethernet_content_type type, char * ethernet_data, int data_length) {
+void on_ethernet_package_received(char target[6], char origin[6], ethernet_content_type type, unsigned char * ethernet_data, int data_length) {
 	if (type == Eth_IPv4) {
 		if (is_origin_mac(origin)) {
 			printf("A propria maquina enviou um IPv4\n");
 		}
+		printf(
+			"[Ethernet] Size: %5d - Origin MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			data_length,
+			origin[0] & 0xff,
+			origin[1] & 0xff,
+			origin[2] & 0xff,
+			origin[3] & 0xff,
+			origin[4] & 0xff,
+			origin[5] & 0xff
+		);
 		if (is_broadcast_mac(target)) {
-			printf(
-				"[Ethernet] Size: %5d - Origin MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-				data_length,
-				origin[0] & 0xff,
-				origin[1] & 0xff,
-				origin[2] & 0xff,
-				origin[3] & 0xff,
-				origin[4] & 0xff,
-				origin[5] & 0xff
-			);
 			on_ipv4_broadcast(ethernet_data + 14, data_length - 14);
 			printf("\n");
 		}
@@ -242,11 +230,11 @@ int main(int argc,char *argv[]) {
 	/* Leitura dos pacotes */
 	printf("Iniciando processo de leitura de pacotes\n");
 	while (1) {
-   		length = recvfrom(sockd,(char *) &buff1, sizeof(buff1), 0x0, NULL, NULL);
+   		length = recvfrom(sockd,(char *) &ebuffer, sizeof(ebuffer), 0x0, NULL, NULL);
 		if (length <= 0) {
 			printf("Recebido mensagem sem dados\n");
 		} else {
-			type_or_length = (buff1[12] << 8) + buff1[13];
+			type_or_length = (ebuffer[12] << 8) + ebuffer[13];
 			ethernet_content_type type = Eth_UNKNOWN;
 			if (type_or_length <= 1500) {
 				type = Eth_RAW_ETHERNET;
@@ -260,9 +248,9 @@ int main(int argc,char *argv[]) {
 			} else if (type_or_length == 0x86dd) {
 				type = Eth_IPv6;
 			}
-			memcpy((void *) target, buff1, 6);
-			memcpy((void *) origin, buff1+6, 6);
-			on_ethernet_package_received(target, origin, type, buff1, length);
+			memcpy((void *) target, ebuffer, 6);
+			memcpy((void *) origin, ebuffer+6, 6);
+			on_ethernet_package_received(target, origin, type, ebuffer, length);
 		}
 	}
 }

@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdio.h>
 
 #ifndef IRC_SHARED
 #define IRC_SHARED

@@ -6,14 +6,14 @@
 int irc_create_listen(char * origin, char * channel_name);
 int irc_destroy_listen_by_name(char * channel_name);
 int irc_destroy_listen_by_origin(char * origin);
-int irc_destroy_listen_by_origin_and_name(char * origin);
+int irc_destroy_listen_by_origin_and_name(char * origin, char * channel_name);
 int irc_check_listen_by_origin(char * origin);
 int irc_check_listen_by_origin_and_name(char * origin, char * channel_name);
 
 // Listen Implementation
 
 int irc_check_listen_by_origin(char * origin) {
-	irc_node * node = irc_search_node_by_origin(origin);
+	irc_node * node = irc_search_node_by_origin(irc_listen, origin);
 	if (node) {
 		return 1;
 	}
@@ -21,7 +21,7 @@ int irc_check_listen_by_origin(char * origin) {
 }
 
 int irc_check_listen_by_origin_and_name(char * origin, char * channel_name) {
-	irc_node * node = irc_search_node_by_origin_and_name(origin, channel_name);
+	irc_node * node = irc_search_node_by_origin_and_name(irc_listen, origin, channel_name);
 	if (node) {
 		return 1;
 	}
@@ -43,7 +43,7 @@ int irc_create_listen(char * origin, char * channel_name) {
 }
 
 int irc_destroy_listen_by_name(char * channel_name) {
-	irc_node * node = irc_search_node_by_name(channel_name);
+	irc_node * node = irc_search_node_by_name(irc_listen, channel_name);
 	if (!node) {
 		return irc_error_object_not_found("listen with name");
 	}
@@ -52,7 +52,7 @@ int irc_destroy_listen_by_name(char * channel_name) {
 }
 
 int irc_destroy_listen_by_origin(char * origin) {
-	irc_node * node = irc_search_node_by_origin(origin);
+	irc_node * node = irc_search_node_by_origin(irc_listen, origin);
 	if (!node) {
 		return irc_error_object_not_found("listen with origin");
 	}
@@ -61,7 +61,7 @@ int irc_destroy_listen_by_origin(char * origin) {
 }
 
 int irc_destroy_listen_by_origin_and_name(char * origin, char * channel_name) {
-	irc_node * node = irc_search_node_by_origin_and_name(origin, channel_name);
+	irc_node * node = irc_search_node_by_origin_and_name(irc_listen, origin, channel_name);
 	if (!node) {
 		return irc_error_object_not_found("listen with origin");
 	}

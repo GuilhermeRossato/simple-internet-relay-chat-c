@@ -10,7 +10,15 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/ether.h>
+#include <netdb.h>
 #include "../raw/raw.h"
+
+#ifndef NI_MAXHOST
+	#define NI_MAXHOST	64
+#endif
+#ifndef NI_NUMERICHOST
+	#define NI_NUMERICHOST	64
+#endif
 
 char this_mac[6];
 char bcast_mac[6] =	{0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -65,7 +73,7 @@ int _irc_is_string_ip(char * ip) {
 	return 1;
 }
 
-int _irc_mac_to_binary(char * mac, uint8_t * binary_mac) {
+int _irc_mac_to_binary(char * mac, unsigned int * binary_mac) {
 	if (!_irc_is_string_mac(mac)) {
 		memcpy(binary_mac, mac, 6);
 		return 1;
@@ -74,31 +82,47 @@ int _irc_mac_to_binary(char * mac, uint8_t * binary_mac) {
 	return 1;
 }
 
-int _irc_ip_to_binary(char * ip, uint8_t * binary_mac) {
+int _irc_ip_to_binary(char * ip, unsigned int * binary_ip) {
 	if (!_irc_is_string_ip(ip)) {
-		memcpy(binary_mac, ip, 6);
+		memcpy(binary_ip, ip, 6);
 		return 1;
 	}
-	sscanf(ip,"%d.%d.%d.%d",&binary_mac[0],&binary_mac[1],&binary_mac[2],&binary_mac[3]);
+	sscanf(ip,"%d.%d.%d.%d",&binary_ip[0],&binary_ip[1],&binary_ip[2],&binary_ip[3]);
 	return 1;
 }
 
-int irc_send_udp_data(char * interface, int origin_port, int target_port, char * target_mac, char * target_ip, char * message) {
+int _irc_send_udp_packet(
+	char * interface_name,
+	int origin_port,
+	int target_port,
+	uint8_t * binary_target_mac,
+	uint8_t * binary_target_ip,
+	char * message
+);
+
+int irc_send_udp_data(
+	char * interface,
+	int origin_port,
+	int target_port,
+	char * target_mac,
+	char * target_ip,
+	char * message
+) {
 	uint8_t binary_mac[6+1];
 	uint8_t binary_ip[4+1];
 
-	_irc_mac_to_binary(target_mac, binary_mac);
-	_irc_ip_to_binary(target_ip, binary_ip);
+	_irc_mac_to_binary(target_mac, (unsigned int *) binary_mac);
+	_irc_ip_to_binary(target_ip, (unsigned int *) binary_ip);
 
 	return _irc_send_udp_packet(interface, origin_port, target_port, binary_mac, binary_ip, message);
 
 	printf("Sending to:\n");
 	printf("Mac : %02x:%02x:%02x:%02x...", binary_mac[0], binary_mac[1], binary_mac[2], binary_mac[3]);
 	printf("Ip  : %d.%d.%d.%d", binary_ip[0], binary_ip[1], binary_ip[2], binary_ip[3]);
-	printf("Port: %d", port);
+	printf("Port: %d", target_port);
 }
 
-int _irc_send_data(
+int _irc_send_udp_packet(
 	char * interface_name,
 	int origin_port,
 	int target_port,
@@ -106,7 +130,7 @@ int _irc_send_data(
 	uint8_t * binary_target_ip,
 	char * message
 ) {
-	struct ifreq if_idx, if_mac, ifopts;
+	struct ifreq if_idx, if_mac, if_ip, ifopts;
 	struct sockaddr_ll socket_address;
 	int sockfd, numbytes;
 	uint8_t * msg = message;
@@ -154,27 +178,16 @@ int _irc_send_data(
 	}
 	memcpy(binary_origin_mac, if_mac.ifr_hwaddr.sa_data, 6);
 
-	if (ifa->ifa_addr->sa_family != AF_INET) {
-		return irc_error_invalid_something("IP family");
-	}
-
 	printf("Getting the IP of the interface: ");
+	memset(&if_ip, 0, sizeof(struct ifreq));
+	strncpy(if_ip.ifr_name, interface_name, IFNAMSIZ-1);
+ 	ioctl(sockfd, SIOCGIFADDR, &if_ip);
 
-	op_result = getnameinfo(
-		ifa->ifa_addr,
-		(ifa->ifa_addr->sa_family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6),
-		origin_name,
-		NI_MAXHOST,
-		NULL,
-		0,
-		NI_NUMERICHOST
-	);
-	printf("%d\n", op_result);
-	if (op_result != 0) {
-		printf("getnameinfo() failed: %s\n", gai_strerror(s));
-	}
+ 	char ipv4_string[64];
+ 	snprintf(ipv4_string, 64, "%s", inet_ntoa(((struct sockaddr_in *)&if_ip.ifr_addr)->sin_addr));
 
-	_irc_ip_to_binary(origin_name, binary_origin_ip);
+	_irc_ip_to_binary(ipv4_string, (unsigned int *) binary_origin_ip);
+	printf("%d.%d.%d.%d\n", binary_origin_ip[0], binary_origin_ip[1], binary_origin_ip[2], binary_origin_ip[3]);
 
 
 	/* Fill the Ethernet frame header */

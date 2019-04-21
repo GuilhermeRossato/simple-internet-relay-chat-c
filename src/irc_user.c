@@ -11,7 +11,7 @@ int irc_check_user_by_origin(char * origin);
 // User Implementation
 
 int irc_check_user_by_origin(char * origin) {
-	irc_node * node = irc_search_node_by_origin(origin);
+	irc_node * node = irc_search_node_by_origin(irc_user, origin);
 	if (node != 0) {
 		return 1;
 	}
@@ -37,7 +37,7 @@ int irc_create_user(char * origin, char * user_name) {
 }
 
 int irc_destroy_user_by_name(char * user_name) {
-	irc_node * node = irc_search_node_by_name(user_name);
+	irc_node * node = irc_search_node_by_name(irc_user, user_name);
 	if (!node) {
 		return irc_error_object_not_found("user with name");
 	}
@@ -46,7 +46,7 @@ int irc_destroy_user_by_name(char * user_name) {
 }
 
 int irc_destroy_user_by_origin(char * origin) {
-	irc_node * node = irc_search_node_by_origin(origin);
+	irc_node * node = irc_search_node_by_origin(irc_user, origin);
 	if (!node) {
 		return irc_error_object_not_found("user with origin");
 	}

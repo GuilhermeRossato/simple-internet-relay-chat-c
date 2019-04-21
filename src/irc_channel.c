@@ -12,7 +12,7 @@ int irc_check_channel_by_origin(char * origin);
 // Channel Implementation
 
 int irc_check_channel_exists(char * channel_name) {
-	irc_node * node = irc_search_node_by_name(channel_name);
+	irc_node * node = irc_search_node_by_name(irc_channel, channel_name);
 	if (node != 0) {
 		return 1;
 	}
@@ -21,7 +21,7 @@ int irc_check_channel_exists(char * channel_name) {
 
 
 int irc_check_channel_by_origin(char * origin) {
-	irc_node * node = irc_search_node_by_origin(origin);
+	irc_node * node = irc_search_node_by_origin(irc_channel, origin);
 	if (node != 0) {
 		return 1;
 	}
@@ -42,7 +42,7 @@ int irc_create_channel(char * origin, char * channel_name) {
 }
 
 int irc_destroy_channel_by_name(char * channel_name) {
-	irc_node * node = irc_search_node_by_name(channel_name);
+	irc_node * node = irc_search_node_by_name(irc_channel, channel_name);
 	if (!node) {
 		return irc_error_object_not_found("channel with name");
 	}
@@ -51,7 +51,7 @@ int irc_destroy_channel_by_name(char * channel_name) {
 }
 
 int irc_destroy_channel_by_origin(char * origin) {
-	irc_node * node = irc_search_node_by_origin(origin);
+	irc_node * node = irc_search_node_by_origin(irc_channel, origin);
 	if (!node) {
 		return irc_error_object_not_found("channel with origin");
 	}

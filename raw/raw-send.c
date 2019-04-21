@@ -88,14 +88,14 @@ int main(int argc, char *argv[])
 	buffer_u.cooked_data.payload.ip.proto = 17; //0xff;
 	buffer_u.cooked_data.payload.ip.sum = htons(0x0000);
 
-	buffer_u.cooked_data.payload.ip.src[0] = 192;
-	buffer_u.cooked_data.payload.ip.src[1] = 168;
-	buffer_u.cooked_data.payload.ip.src[2] = 5;
-	buffer_u.cooked_data.payload.ip.src[3] = 25;
-	buffer_u.cooked_data.payload.ip.dst[0] = 192;
-	buffer_u.cooked_data.payload.ip.dst[1] = 168;
-	buffer_u.cooked_data.payload.ip.dst[2] = 6;
-	buffer_u.cooked_data.payload.ip.dst[3] = 6;
+	buffer_u.cooked_data.payload.ip.src[0] = 255;
+	buffer_u.cooked_data.payload.ip.src[1] = 255;
+	buffer_u.cooked_data.payload.ip.src[2] = 255;
+	buffer_u.cooked_data.payload.ip.src[3] = 255;
+	buffer_u.cooked_data.payload.ip.dst[0] = 255;
+	buffer_u.cooked_data.payload.ip.dst[1] = 255;
+	buffer_u.cooked_data.payload.ip.dst[2] = 255;
+	buffer_u.cooked_data.payload.ip.dst[3] = 255;
 	buffer_u.cooked_data.payload.ip.sum = htons((~ipchksum((uint8_t *)&buffer_u.cooked_data.payload.ip) & 0xffff));
 
 	/* Fill UDP header */

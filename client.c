@@ -29,13 +29,22 @@ int main(int argn, char ** argc) {
 
 	char * interface_name = argc[1];
 
-	unsigned char interface_address[16];
-	if (!irc_put_ethernet_interface_address_by_name(interface_name, interface_address, 16)) {
+	unsigned char origin_mac[16];
+	if (!irc_put_ethernet_interface_address_by_name(interface_name, origin_mac, 16)) {
 		printf("Interface not found: %s\n", interface_name);
 		exit(1);
 	}
 
-	printf("Interface: %s [%02x:%02x:%02x:%02x:%02x:%02x]\n", interface_name, interface_address[0], interface_address[1], interface_address[2], interface_address[3], interface_address[4], interface_address[5]);
+	printf("Interface: %s [%02x:%02x:%02x:%02x:%02x:%02x]\n", interface_name, origin_mac[0], origin_mac[1], origin_mac[2], origin_mac[3], origin_mac[4], origin_mac[5]);
+
+	irc_send_udp_data(
+		interface_name,
+		8080,
+		8080,
+		origin_mac,
+		"255.255.255.255",
+		"Hello World"
+	);
 
 	return 0;
 }

@@ -208,7 +208,7 @@ int main(int argc,char *argv[]) {
 		}
 		printf("\nEscolha a interface: ");
 		char c = getchar();
-		while (c == 10 || c <= '0' || c >= '9' || (c-'0') >= interfaces_length) {
+		while (c == 10 || c < '0' || c >= '9' || (c-'0') >= interfaces_length) {
 			if (c > 10 && c != ' ' && c != '\n' && c != '\r') {
 				printf("\nEscolha um valor valido: ");
 			}

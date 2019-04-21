@@ -82,12 +82,12 @@ int _irc_mac_to_binary(char * mac, unsigned int * binary_mac) {
 	return 1;
 }
 
-int _irc_ip_to_binary(char * ip, unsigned int * binary_ip) {
+int _irc_ip_to_binary(char * ip, unsigned char * binary_ip) {
 	if (!_irc_is_string_ip(ip)) {
 		memcpy(binary_ip, ip, 6);
 		return 1;
 	}
-	sscanf(ip,"%d.%d.%d.%d",&binary_ip[0],&binary_ip[1],&binary_ip[2],&binary_ip[3]);
+	sscanf(ip,"%d.%d.%d.%d",(int *) &binary_ip[0],(int *) &binary_ip[1],(int *) &binary_ip[2],(int *) &binary_ip[3]);
 	return 1;
 }
 
@@ -112,14 +112,14 @@ int irc_send_udp_data(
 	uint8_t binary_ip[4+1];
 
 	_irc_mac_to_binary(target_mac, (unsigned int *) binary_mac);
-	_irc_ip_to_binary(target_ip, (unsigned int *) binary_ip);
-
-	return _irc_send_udp_packet(interface, origin_port, target_port, binary_mac, binary_ip, message);
+	_irc_ip_to_binary(target_ip, (char *) binary_ip);
 
 	printf("Sending to:\n");
-	printf("Mac : %02x:%02x:%02x:%02x...", binary_mac[0], binary_mac[1], binary_mac[2], binary_mac[3]);
-	printf("Ip  : %d.%d.%d.%d", binary_ip[0], binary_ip[1], binary_ip[2], binary_ip[3]);
-	printf("Port: %d", target_port);
+	printf("Mac : %02x:%02x:%02x:%02x...\n", binary_mac[0], binary_mac[1], binary_mac[2], binary_mac[3]);
+	printf("Ip  : %d.%d.%d.%d\n", binary_ip[0], binary_ip[1], binary_ip[2], binary_ip[3]);
+	printf("Port: %d\n", target_port);
+
+	return _irc_send_udp_packet(interface, origin_port, target_port, binary_mac, binary_ip, message);
 }
 
 int _irc_send_udp_packet(
@@ -181,13 +181,15 @@ int _irc_send_udp_packet(
 	printf("Getting the IP of the interface: ");
 	memset(&if_ip, 0, sizeof(struct ifreq));
 	strncpy(if_ip.ifr_name, interface_name, IFNAMSIZ-1);
- 	ioctl(sockfd, SIOCGIFADDR, &if_ip);
+ 	op_result = ioctl(sockfd, SIOCGIFADDR, &if_ip);
+ 	printf("%d\n", op_result);
 
  	char ipv4_string[64];
  	snprintf(ipv4_string, 64, "%s", inet_ntoa(((struct sockaddr_in *)&if_ip.ifr_addr)->sin_addr));
 
-	_irc_ip_to_binary(ipv4_string, (unsigned int *) binary_origin_ip);
-	printf("%d.%d.%d.%d\n", binary_origin_ip[0], binary_origin_ip[1], binary_origin_ip[2], binary_origin_ip[3]);
+	_irc_ip_to_binary(ipv4_string, (char *) binary_origin_ip);
+	printf("src IP: %d.%d.%d.%d\n", binary_origin_ip[0], binary_origin_ip[1], binary_origin_ip[2], binary_origin_ip[3]);
+	printf("dst IP: %d.%d.%d.%d\n", binary_target_ip[0], binary_target_ip[1], binary_target_ip[2], binary_target_ip[3]);
 
 
 	/* Fill the Ethernet frame header */
@@ -227,8 +229,9 @@ int _irc_send_udp_packet(
 
 	/* Send it.. */
 	memcpy(socket_address.sll_addr, dst_mac, 6);
-	if (sendto(sockfd, buffer_u.raw_data, sizeof(struct eth_hdr) + sizeof(struct ip_hdr) + sizeof(struct udp_hdr) + message_buffer_size, 0, (struct sockaddr*)&socket_address, sizeof(struct sockaddr_ll)) < 0)
+	if (sendto(sockfd, buffer_u.raw_data, sizeof(struct eth_hdr) + sizeof(struct ip_hdr) + sizeof(struct udp_hdr) + message_buffer_size, 0, (struct sockaddr*)&socket_address, sizeof(struct sockaddr_ll)) < 0) {
 		printf("Send failed\n");
+	}
 
 	return 0;
 }

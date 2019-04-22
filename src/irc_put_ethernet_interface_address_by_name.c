@@ -1,4 +1,4 @@
-#include <ifaddrs.h>
+
 #include <string.h>
 
 /**
@@ -14,6 +14,19 @@
 int irc_put_ethernet_interface_address_by_name(char * name, char * buffer, unsigned int buffer_size);
 
 // Implementation
+#ifdef _WIN32
+
+int irc_put_ethernet_interface_address_by_name(char * name, char * buffer, unsigned int buffer_size) {
+	if (name[0] == 'l' && name[1] == 'o' && name[2] == '\0') {
+		snprintf(buffer, buffer_size, "00:01:02:03:04:05");
+		return 1;
+	}
+	return 0;
+}
+
+#else
+
+#include <ifaddrs.h>
 
 int irc_put_ethernet_interface_address_by_name(char * name, char * buffer, unsigned int buffer_size) {
 	int exists = 0;
@@ -50,3 +63,5 @@ int irc_put_ethernet_interface_address_by_name(char * name, char * buffer, unsig
 	}
 	return 1;
 }
+
+#endif

@@ -7,6 +7,8 @@
 #include "irc_listen.c"
 #include "irc_send.c"
 #include "irc_server.c"
+#include "irc_conio.c"
+#include "irc_timer.c"
 
 // IRC Interface
 

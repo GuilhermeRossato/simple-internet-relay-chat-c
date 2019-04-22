@@ -11,6 +11,10 @@
  *
  * @return             Success indicator, zero if there was an error or the interface was not found. Returns 1 (one) for success.
  */
+int irc_put_ethernet_interface_address_by_name(char * name, char * buffer, unsigned int buffer_size);
+
+// Implementation
+
 int irc_put_ethernet_interface_address_by_name(char * name, char * buffer, unsigned int buffer_size) {
 	int exists = 0;
 	int count = 0;
@@ -18,7 +22,7 @@ int irc_put_ethernet_interface_address_by_name(char * name, char * buffer, unsig
 	getifaddrs(&addrs);
 	tmp = addrs;
 	int i;
-	
+
 	while (tmp) {
 		if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_PACKET) {
 			if (strncmp(name, tmp->ifa_name, buffer_size) == 0) {

@@ -12,6 +12,10 @@
  *
  * @return             Success indicator, zero if there was an error or the interface was not found. Returns 1 (one) for success.
  */
+int irc_put_ethernet_interface_name_by_id(int id, char * buffer, unsigned int buffer_size);
+
+// Implementation
+
 int irc_put_ethernet_interface_name_by_id(int id, char * buffer, unsigned int buffer_size) {
 	int exists = 0;
 	int count = 0;

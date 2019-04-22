@@ -14,17 +14,6 @@
 int irc_put_ethernet_interface_address_by_name(char * name, char * buffer, unsigned int buffer_size);
 
 // Implementation
-#ifdef _WIN32
-
-int irc_put_ethernet_interface_address_by_name(char * name, char * buffer, unsigned int buffer_size) {
-	if (name[0] == 'l' && name[1] == 'o' && name[2] == '\0') {
-		snprintf(buffer, buffer_size, "00:01:02:03:04:05");
-		return 1;
-	}
-	return 0;
-}
-
-#else
 
 #include <ifaddrs.h>
 
@@ -40,6 +29,7 @@ int irc_put_ethernet_interface_address_by_name(char * name, char * buffer, unsig
 		if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_PACKET) {
 			if (strncmp(name, tmp->ifa_name, buffer_size) == 0) {
 				exists = 1;
+				//printf("Address\n"); for (i=0;i<6;i++) { printf("%02X ", tmp->ifa_addr->sa_data[i+10] & 0xFF); } printf("\n");
 				for (i=0;i<buffer_size && i < 16;i++) {
 					buffer[i] = tmp->ifa_addr->sa_data[i+10];
 				}
@@ -57,11 +47,11 @@ int irc_put_ethernet_interface_address_by_name(char * name, char * buffer, unsig
 		tmp = tmp->ifa_next;
 	}
 	freeifaddrs(addrs);
-	if (exists == 0 && buffer_size > 0) {
-		buffer[0] = '\0';
+	if (exists == 0) {
+		if (buffer_size > 0) {
+			buffer[0] = '\0';
+		}
 		return 0;
 	}
 	return 1;
 }
-
-#endif

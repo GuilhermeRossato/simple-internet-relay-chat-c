@@ -36,6 +36,8 @@ int main(int argn, char ** argc) {
 	}
 
 	irc_send(interface_name, "Hello World");
+	irc_send(interface_name, "What is up");
+	irc_send(interface_name, "Am I communicating?");
 
 	return 0;
 }

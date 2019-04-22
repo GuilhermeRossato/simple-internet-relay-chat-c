@@ -15,18 +15,6 @@ int irc_put_ethernet_interface_name_by_id(int id, char * buffer, unsigned int bu
 
 // Implementation
 
-#ifdef _WIN32
-
-int irc_put_ethernet_interface_name_by_id(int id, char * buffer, unsigned int buffer_size) {
-	if (id == 0) {
-		snprintf(buffer, buffer_size, "lo");
-		return 1;
-	}
-	return 0;
-}
-
-#else
-
 #include <ifaddrs.h>
 
 int irc_put_ethernet_interface_name_by_id(int id, char * buffer, unsigned int buffer_size) {
@@ -66,5 +54,3 @@ int irc_put_ethernet_interface_name_by_id(int id, char * buffer, unsigned int bu
 	}
 	return 1;
 }
-
-#endif

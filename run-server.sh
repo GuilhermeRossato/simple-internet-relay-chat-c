@@ -1,1 +1,1 @@
-gcc -o server server.c && ./server
+gcc -o server server.c && ./server lo

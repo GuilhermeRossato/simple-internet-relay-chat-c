@@ -23,11 +23,11 @@
  *
  * @return           Success Indicator (1 when succeded, 0 when it fails)
  */
-int irc_send(char * interface, char * message);
+int irc_send(char * interface, char * message, char * origin_mac, char * origin_ip, int origin_port, char * target_mac, char * target_ip, int target_port);
 
 // Send Implementation
 
-#define DEBUG_SEND 1
+#define DEBUG_SEND 0
 #define debug_print_send(fmt, ...) \
         do { if (DEBUG_SEND) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); } while (0)
 
@@ -242,7 +242,7 @@ int _irc_send_udp_packet(
 	return 0;
 }
 
-int irc_send(char * interface, char * message) {
+int irc_send(char * interface, char * message, char * origin_mac, char * origin_ip, int origin_port, char * target_mac, char * target_ip, int target_port) {
 	int length = strlen(message) + 1;
 	int buffer_size = length + 4 + 1;
 
@@ -252,12 +252,12 @@ int irc_send(char * interface, char * message) {
 
 	irc_send_udp_data(
 		interface,
-		"FF:FF:FF:FF:FF:FF",
-		"255.255.255.255",
-		8080,
-		"FF:FF:FF:FF:FF:FF",
-		"255.255.255.255",
-		8080,
+		origin_mac,
+		origin_ip,
+		origin_port,
+		target_mac,
+		target_ip,
+		origin_port,
 		buffer,
 		buffer_size
 	);

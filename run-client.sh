@@ -1,1 +1,1 @@
-gcc -o client client.c && ./client wlo1
+gcc -o client client.c && ./client lo

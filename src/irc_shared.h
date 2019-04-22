@@ -52,7 +52,7 @@ int irc_error_malloc_failed(char * context) {
 	return 0;
 }
 int irc_error_could_not(char * thing) {
-	printf("IRC Error: Could not %s due to an error result", thing);
+	printf("IRC Error: Could not %s due to an error result\n", thing);
 	return 0;
 }
 #endif

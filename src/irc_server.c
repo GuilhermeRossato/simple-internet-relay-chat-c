@@ -28,13 +28,13 @@
  *
  * @return           Success Indicator (1 when succeded, 0 when it fails)
  */
-int irc_server(char * interface, int (*callback)(char *, int));
+int irc_server(char * interface, char * this_mac, int (*callback)(char *, int));
 
 // Server Implementation
 
 #define BUFFSIZE 1518
 
-#define DEBUG_SERVER 1
+#define DEBUG_SERVER 0
 #define debug_print_server(fmt, ...) \
         do { if (DEBUG_SERVER) fprintf(stderr, "%s:%d:%s():\n" fmt "\n", __FILE__, __LINE__, __func__, __VA_ARGS__); } while (0)
 
@@ -171,25 +171,21 @@ int irc_on_ethernet_packet_received(message_data_type * msg_data, unsigned char 
 			msg_data->target_mac[4] & 0xFF,
 			msg_data->target_mac[5] & 0xFF
 		);
-		printf("last bytes: %c %c %c\n", buffer[buffer_size-3], buffer[buffer_size-2], buffer[buffer_size-1]);
 		irc_on_ip_packet_received(msg_data, buffer+14, buffer_size-14);
 	}
 }
 
-int irc_server(char * interface, int (*callback)(char *, int)) {
+int irc_server(char * interface, char * this_mac, int (*callback)(char *, int)) {
 	int sockd;
 	if ((sockd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0) {
-		printf("Socket failed\n");
-		return 0;
+		return irc_error_could_not("open raw socket");
 	}
 	int i;
 	struct ifreq ifr;
 
-	printf("\nSetando a interface \"%s\" em modo promiscuo\n", interface);
 	strcpy(ifr.ifr_name, interface);
 	if (ioctl(sockd, SIOCGIFINDEX, &ifr) < 0) {
-		printf("Erro ao setar a interface em modo promiscuo (no ioctl)\n");
-		return 0;
+		return irc_error_could_not("set the interface to promicious mode");
 	}
 	ioctl(sockd, SIOCGIFFLAGS, &ifr);
 	ifr.ifr_flags |= IFF_PROMISC;
@@ -199,11 +195,41 @@ int irc_server(char * interface, int (*callback)(char *, int)) {
 	int length;
 	message_data_type msg_data;
 	msg_data.func = callback;
+	unsigned char target_mac[6];
 	while (1) {
 		length = recvfrom(sockd,(char *) &buffer, sizeof(buffer)+1, 0x0, NULL, NULL);
 		if (length <= 20) {
 			continue;
 		} else {
+			memcpy((void *) target_mac, buffer, 6);
+			int is_broadcast = (
+				target_mac[0] == 0xFF &&
+				target_mac[1] == 0xFF &&
+				target_mac[2] == 0xFF &&
+				target_mac[3] == 0xFF &&
+				target_mac[4] == 0xFF &&
+				target_mac[5] == 0xFF
+			);
+			int is_targeted = (
+				target_mac[0] == this_mac[0] &&
+				target_mac[1] == this_mac[1] &&
+				target_mac[2] == this_mac[2] &&
+				target_mac[3] == this_mac[3] &&
+				target_mac[4] == this_mac[4] &&
+				target_mac[5] == this_mac[5]
+			);
+			if (!is_broadcast && !is_targeted) {
+				debug_print_server(
+					"[Ethernet] Ignored packet addressed to %02X:%02X:%02X:%02X:%02X:%02X\n",
+					target_mac[0] & 0xFF,
+					target_mac[1] & 0xFF,
+					target_mac[2] & 0xFF,
+					target_mac[3] & 0xFF,
+					target_mac[4] & 0xFF,
+					target_mac[5] & 0xFF
+				);
+				continue;
+			}
 			irc_on_ethernet_packet_received(&msg_data, buffer, length+1);
 		}
 	}

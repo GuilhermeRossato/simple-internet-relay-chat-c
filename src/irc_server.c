@@ -196,6 +196,11 @@ int irc_server(char * interface, char * this_mac, int (*callback)(char *, int)) 
 	message_data_type msg_data;
 	msg_data.func = callback;
 	unsigned char target_mac[6];
+	// Convert input to binary mac if it is necessary
+	if (_irc_is_string_mac(this_mac)) {
+		_irc_mac_to_binary(this_mac, target_mac);
+		memcpy(this_mac, target_mac, 6);
+	}
 	while (1) {
 		length = recvfrom(sockd,(char *) &buffer, sizeof(buffer)+1, 0x0, NULL, NULL);
 		if (length <= 20) {

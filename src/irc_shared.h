@@ -55,4 +55,64 @@ int irc_error_could_not(char * thing) {
 	printf("IRC Error: Could not %s due to an error result\n", thing);
 	return 0;
 }
+
+
+
+int _irc_is_string_mac(char * mac) {
+	int i, is_separator, is_number, is_letter;
+	for (i=0;i<6;i++) {
+		is_separator = (mac[i] == ':');
+		is_number = (mac[i] >= '0' && mac[i] <= '9');
+		is_letter = ((mac[i] >= 'a' && mac[i] <= 'f') || (mac[i] >= 'A' && mac[i] <= 'F'));
+
+		if (i == 0 && !is_letter && !is_number) {
+			return 0;
+		}
+
+		if ((i == 2 || i == 5) && !is_separator) {
+			return 0;
+		}
+
+		if (!is_number && !is_letter && !is_separator) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+
+int _irc_is_string_ip(char * ip) {
+	int i, is_separator, is_number;
+	for (i=0;i<4;i++) {
+		is_separator = (ip[i] == '.');
+		is_number = (ip[i] >= '0' && ip[i] <= '9');
+		if (i == 0 && !is_number) {
+			return 0;
+		}
+		if (!is_number && !is_separator) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+int _irc_mac_to_binary(char * mac, uint8_t * binary_mac) {
+	if (!_irc_is_string_mac(mac)) {
+		printf("mac is already binary: %c %c %c", mac[0], mac[1], mac[2]);
+		memcpy(binary_mac, mac, 6);
+		return 1;
+	}
+	sscanf(mac,"%x:%x:%x:%x:%x:%x", (unsigned int *) &binary_mac[0], (unsigned int *) &binary_mac[1], (unsigned int *) &binary_mac[2], (unsigned int *) &binary_mac[3], (unsigned int *) &binary_mac[4], (unsigned int *) &binary_mac[5]);
+	return 1;
+}
+
+int _irc_ip_to_binary(char * ip, uint8_t * binary_ip) {
+	if (!_irc_is_string_ip(ip)) {
+		memcpy(binary_ip, ip, 6);
+		return 1;
+	}
+	sscanf(ip,"%d.%d.%d.%d", (unsigned int *) &binary_ip[0], (unsigned int *) &binary_ip[1], (unsigned int *) &binary_ip[2], (unsigned int *) &binary_ip[3]);
+	return 1;
+}
+
 #endif

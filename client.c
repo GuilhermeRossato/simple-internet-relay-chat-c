@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <pthread.h>
 #include "src/irc.h"
 
 int user_input_index = 0;
@@ -8,17 +9,12 @@ int user_input_length = 0;
 char user_input[128];
 int is_input_insert = 0;
 int flashing_indication = 0;
-int is_program_finished = 0;
 
 void print_date() {
 	time_t t = time(NULL);
 	struct tm tm = *localtime(&t);
-
 	printf("%d-%d-%d %d:%d:%d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
-
-int screen_data_index = 0;
-char screen_data[128][10] = {0};
 
 void update_screen() {
 	gotoxy(0, 0);
@@ -259,7 +255,23 @@ int add_line_to_screen(char * message) {
 	snprintf(screen_data[9], 127, "%s", message);
 }
 
-int handle_input() {
+typedef struct pipe_data_type {
+	int is_program_finished;
+	int interface_id;
+	int send_message_buffer;
+	char username[32];
+	char message_buffer[128];
+	char interface_name[32];
+	char origin_mac[32];
+	char origin_ip[32];
+	char target_mac[32];
+	char target_ip[32];
+	int screen_data_index;
+	char screen_data[128][10] = {0};
+} pipe_data_type;
+
+
+int handle_input(pipe_data_type * pdt) {
 	int input;
 	while(1) {
 		if (is_program_finished == 1) {
@@ -302,22 +314,22 @@ int handle_input() {
 			if (input == 'D') {
 				if (user_input_index > 0) {
 					user_input_index--;
+					update_screen();
 				}
 			} else if (input == 'C') {
 				if (user_input_index < user_input_length && user_input_index < 127) {
 					user_input_index ++;
+					update_screen();
 				}
 			}
-			update_screen();
 		} else if (input == 50) {
 			is_input_insert = !is_input_insert;
 		} else if (input == 10) {
 			// enter (send)
-			// TODO send data with IRC_SEND
-			if (screen_data_index < 10){
-				screen_data_index++;
-			}
-			add_line_to_screen("Hello world");
+			// send to server
+			irc_send(user_input, pdt->interface_name, pdt->origin_mac, pdt->origin_ip, pdt->target_mac, pdt->target_ip);
+
+			// clear user input
 			user_input_index = 0;
 			user_input_length = 0;
 			user_input[0] = '\0';
@@ -331,37 +343,40 @@ int handle_input() {
 	}
 }
 
-int interface_id;
-char interface_name[64];
-char origin_mac[32];
-char origin_ip[32];
-char target_mac[32];
-char target_ip[32];
-
 int receive(char * message, int message_length) {
-	printf("Received %d bytes: %s\n", message_length, message);
-	//snprintf(screen_data[0], 127, message);
+	
 }
 
-int handle_server(char * interface_name) {
-	if (!irc_server(interface_name, receive)) {
-		printf("Server failed\n");
-		is_program_finished = 1;
-		return 0;
-	}
+int handle_server(pipe_data_type * pdt) {
+	irc_server(pdt->interface_name, pdt->origin_mac, receive);
 }
 
 int main(int argn, char ** argc) {
+
+	pipe_data_type pdt;
+	pdt.is_program_finished = 0;
+	pdt.interface_id = -1;
+	pdt.send_message_buffer = 0;
+	pdt.screen_data_index = 0;
+	snprintf(pdt.username, 32, "unnamed");
+
 	while (1) {
-		select_interface(&interface_id);
+		select_interface(&(pdt->interface_id));
 		printf("\n");
-		select_mac("origin MAC", origin_mac, 32);
+		while (1) {
+			select_mac("origin MAC", pdt->origin_mac, 32);
+			if (strncmp(pdt->origin_mac, "FF:FF:FF:FF:FF:FF", 32) == 0) {
+				printf("Origin MAC cannot be broadcast\n");
+				continue;
+			}
+			break;
+		}
 		printf("\n");
-		select_ip("origin IP", origin_ip, 32);
+		select_ip("origin IP", pdt->origin_ip, 32);
 		printf("\n");
-		select_mac("target MAC", target_mac, 32);
+		select_mac("target MAC", pdt->target_mac, 32);
 		printf("\n");
-		select_ip("target IP", target_ip, 32);
+		select_ip("target IP", pdt->target_ip, 32);
 		printf("\n");
 		printf("Are you sure the selected values are correct? [y/n] ");
 		char confirm = getch();
@@ -371,16 +386,20 @@ int main(int argn, char ** argc) {
 		}
 	}
 
-	irc_put_ethernet_interface_name_by_id(interface_id, interface_name, 64);
+	irc_put_ethernet_interface_name_by_id(pdt->interface_id, pdt->interface_name, 32);
 
-	if (0 == 0) {
-		handle_server(interface_name);
-	} else {
-		clrscr();
-		printf("Loading...");
-		irc_start_timer(update_loop);
-		handle_input();
+	pthread_t listener_thread;
+
+	if(pthread_create(&listener_thread, NULL, handle_server, &pdt)) {
+		fprintf(stderr, "Error creating thread\n");
+		return 1;
 	}
 
+	clrscr();
+	printf("Loading...\n");
+	irc_start_timer(update_loop);
+	handle_input(&pdt);
+	pdt->is_program_finished = 1;
+	pthread_join(&listener_thread, NULL);
 	return 0;
 }

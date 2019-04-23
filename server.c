@@ -99,6 +99,7 @@ int main(int argn, char ** argc) {
 		}
 	}
 
+	printf("Listening for messages...\n");
 	irc_put_ethernet_interface_name_by_id(interface_id, interface_name, 64);
 
 	if (!irc_server(interface_name, mac, receive)) {

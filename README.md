@@ -1,8 +1,17 @@
 # simple-internet-relay-chat-c
 
-Para compilar, use o gcc sem nenhuma linkagem:
+Para compilar, use o gcc:
 
 ```
-gcc -o saida entrada.c
+gcc -o executable source.c
 ```
 
+Alternativamente utilize os scripts de compilação e execução:
+
+```
+
+sudo ./run-server.sh
+
+sudo ./run-client.sh
+
+```

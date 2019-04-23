@@ -16,14 +16,11 @@
 // Send Interface
 
 /**
- * Sends a IRC broadcast message through an interface
- *
- * @param interface  The interface to be used for sending the message
- * @param message    The message as null-terminated text to be sent
+ * Sends a IRC message through an interface
  *
  * @return           Success Indicator (1 when succeded, 0 when it fails)
  */
-int irc_send(char * interface, char * message, char * origin_mac, char * origin_ip, int origin_port, char * target_mac, char * target_ip, int target_port);
+int irc_send(char * message, char * interface, char * origin_mac, char * origin_ip, char * target_mac, char * target_ip);
 
 // Send Implementation
 
@@ -239,10 +236,11 @@ int _irc_send_udp_packet(
 	if (sendto(sockfd, buffer_u.raw_data, sizeof(struct eth_hdr) + sizeof(struct ip_hdr) + sizeof(struct udp_hdr) + message_buffer_size, 0, (struct sockaddr*)&socket_address, sizeof(struct sockaddr_ll)) < 0) {
 		printf("Send failed\n");
 	}
-	return 0;
+
+	return 1;
 }
 
-int irc_send(char * interface, char * message, char * origin_mac, char * origin_ip, int origin_port, char * target_mac, char * target_ip, int target_port) {
+int irc_send(char * message, char * interface, char * origin_mac, char * origin_ip, char * target_mac, char * target_ip) {
 	int length = strlen(message) + 1;
 	int buffer_size = length + 4 + 1;
 
@@ -250,17 +248,19 @@ int irc_send(char * interface, char * message, char * origin_mac, char * origin_
 	snprintf(buffer, buffer_size-1, "IRC%s", message);
 	buffer[buffer_size-1] = '\0';
 
-	irc_send_udp_data(
+	int result = irc_send_udp_data(
 		interface,
 		origin_mac,
 		origin_ip,
-		origin_port,
+		8080,
 		target_mac,
 		target_ip,
-		origin_port,
+		8080,
 		buffer,
 		buffer_size
 	);
 
 	free(buffer);
+
+	return result;
 }

@@ -1,17 +1,25 @@
-# simple-internet-relay-chat-c
+# Implementação em C de um projeto de Internet Relay Chat
 
-Para compilar, use o gcc:
+Este projeto consiste em um projeto de servidor + cliente de IRC simplificado para abrangir algumas funções.
+
+## Compilação:
+
+Para compilar o Cliente, é preciso linkar o pthread (pois o compilador é muito burro para fazer isso sozinho, infelizmente).
+
+Para compilar o Servidor, basta utilizar o gcc normalmente.
+
+A compilação de ambos os executáveis é o seguinte:
 
 ```
-gcc -o executable source.c
+gcc client.c -pthread -o client
+gcc server.c -o server
 ```
 
-Alternativamente utilize os scripts de compilação e execução:
+É possível também utilizar os scripts de compilação e execução incluidas no repositório, para agilizar o processo:
 
 ```
 
 sudo ./run-server.sh
-
 sudo ./run-client.sh
 
 ```

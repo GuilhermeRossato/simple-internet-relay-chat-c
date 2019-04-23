@@ -1,10 +1,30 @@
 #include "./src/irc.h"
 
-int receive(char * message, int message_length) {
-	if (irc_compare_two_strings(message, "/who-is-server", message_length)) {
+typedef struct pipe_data_type {
+	int interface_id;
+	char interface_name[32];
+	char origin_mac[32];
+} pipe_data_type;
 
-	}
+pipe_data_type * pdt;
+
+int reply(char * message, message_data_type * origin) {
+	return irc_send(
+		message,
+		pdt->interface_name,
+		pdt->origin_mac,
+		origin->target_ip,
+		origin->origin_mac,
+		origin->origin_ip
+	);
+}
+
+int receive(char * message, int message_length, void * v_origin) {
+	message_data_type * origin = (message_data_type *) v_origin;
 	printf("Received %d bytes: %s\n", message_length, message);
+	if (irc_compare_two_strings(message, "/who-is-server", message_length)) {
+		return reply("I am", origin);
+	}
 }
 
 int select_interface(int * output) {
@@ -84,15 +104,18 @@ int select_mac(char * mac_name, char * output, int output_length) {
 }
 
 int main(int argn, char ** argc) {
-	int interface_id;
-	char interface_name[64];
-	char mac[32];
-	char ip[32];
+	pipe_data_type pdt_original;
+
+	pdt = &pdt_original;
+	pdt->is_program_finished = 0;
+	pdt->interface_id = -1;
+	pdt->send_message_buffer = 0;
+	pdt->screen_data_index = 0;
 
 	while (1) {
-		select_interface(&interface_id);
+		select_interface(&pdt->interface_id);
 		printf("\n");
-		select_mac("MAC", mac, 32);
+		select_mac("MAC", pdt->origin_mac, 32);
 		printf("\n");
 		printf("Are you sure the selected values are correct? [y/n] ");
 		char confirm = getch();
@@ -103,9 +126,9 @@ int main(int argn, char ** argc) {
 	}
 
 	printf("Listening for messages...\n");
-	irc_put_ethernet_interface_name_by_id(interface_id, interface_name, 64);
+	irc_put_ethernet_interface_name_by_id(pdt->interface_id, pdt->interface_name, 64);
 
-	if (!irc_server(interface_name, mac, receive)) {
+	if (!irc_server(pdt->interface_name, pdt->origin_mac, receive)) {
 		return 1;
 	}
 	return 0;

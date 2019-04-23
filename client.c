@@ -10,6 +10,21 @@ char user_input[128];
 int is_input_insert = 0;
 int flashing_indication = 0;
 
+typedef struct pipe_data_type {
+	int is_program_finished;
+	int interface_id;
+	int send_message_buffer;
+	char username[32];
+	char message_buffer[128];
+	char interface_name[32];
+	char origin_mac[32];
+	char origin_ip[32];
+	char target_mac[32];
+	char target_ip[32];
+	int screen_data_index;
+	char screen_data[128][30] = {0};
+} pipe_data_type;
+
 void print_date() {
 	time_t t = time(NULL);
 	struct tm tm = *localtime(&t);
@@ -254,21 +269,6 @@ int add_line_to_screen(pipe_data_type * pdt, char * message) {
 	}
 	snprintf(pdt->screen_data[9], 127, "%s", message);
 }
-
-typedef struct pipe_data_type {
-	int is_program_finished;
-	int interface_id;
-	int send_message_buffer;
-	char username[32];
-	char message_buffer[128];
-	char interface_name[32];
-	char origin_mac[32];
-	char origin_ip[32];
-	char target_mac[32];
-	char target_ip[32];
-	int screen_data_index;
-	char screen_data[128][30] = {0};
-} pipe_data_type;
 
 
 int handle_input(pipe_data_type * pdt) {

@@ -107,10 +107,7 @@ int main(int argn, char ** argc) {
 	pipe_data_type pdt_original;
 
 	pdt = &pdt_original;
-	pdt->is_program_finished = 0;
 	pdt->interface_id = -1;
-	pdt->send_message_buffer = 0;
-	pdt->screen_data_index = 0;
 
 	while (1) {
 		select_interface(&pdt->interface_id);

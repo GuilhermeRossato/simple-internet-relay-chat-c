@@ -1,10 +1,11 @@
-#include <string.h>
-#include <stdio.h>
-
 #ifndef IRC_SHARED
 #define IRC_SHARED
 
-#define IRC_BUFFER_SIZE	64
+#include <string.h>
+#include <stdio.h>
+#include <stdint.h>
+
+#define IRC_BUFFER_SIZE	128
 
 enum irc_node_type {
 	irc_none = 0,
@@ -96,7 +97,6 @@ int _irc_is_string_ip(char * ip) {
 
 int _irc_mac_to_binary(char * mac, uint8_t * binary_mac) {
 	if (!_irc_is_string_mac(mac)) {
-		printf("mac is already binary: %c %c %c", mac[0], mac[1], mac[2]);
 		memcpy(binary_mac, mac, 6);
 		return 1;
 	}

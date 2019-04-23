@@ -210,6 +210,7 @@ int irc_server(char * interface, char * this_mac, int (*callback)(char *, int, v
 	if (ioctl(sockd, SIOCGIFINDEX, &ifr) < 0) {
 		return irc_error_could_not("set the interface to promicious mode");
 	}
+
 	ioctl(sockd, SIOCGIFFLAGS, &ifr);
 	ifr.ifr_flags |= IFF_PROMISC;
 	ioctl(sockd, SIOCSIFFLAGS, &ifr);
@@ -225,6 +226,8 @@ int irc_server(char * interface, char * this_mac, int (*callback)(char *, int, v
 		memcpy((void *) this_mac, buffer, 6);
 	}
 	irc_is_server_running = 1;
+	int is_broadcast, is_targeted;
+
 	while (1) {
 		if (irc_is_server_running != 1) {
 			break;
@@ -234,7 +237,7 @@ int irc_server(char * interface, char * this_mac, int (*callback)(char *, int, v
 			continue;
 		} else {
 			memcpy((void *) target_mac, buffer, 6);
-			int is_broadcast = (
+			is_broadcast = (
 				target_mac[0] == 0xFF &&
 				target_mac[1] == 0xFF &&
 				target_mac[2] == 0xFF &&
@@ -242,7 +245,7 @@ int irc_server(char * interface, char * this_mac, int (*callback)(char *, int, v
 				target_mac[4] == 0xFF &&
 				target_mac[5] == 0xFF
 			);
-			int is_targeted = (
+			is_targeted = (
 				target_mac[0] == this_mac[0] &&
 				target_mac[1] == this_mac[1] &&
 				target_mac[2] == this_mac[2] &&
@@ -251,15 +254,17 @@ int irc_server(char * interface, char * this_mac, int (*callback)(char *, int, v
 				target_mac[5] == this_mac[5]
 			);
 			if (!is_broadcast && !is_targeted) {
-				debug_print_server(
-					"[Ethernet] Ignored packet addressed to %02X:%02X:%02X:%02X:%02X:%02X\n",
-					target_mac[0] & 0xFF,
-					target_mac[1] & 0xFF,
-					target_mac[2] & 0xFF,
-					target_mac[3] & 0xFF,
-					target_mac[4] & 0xFF,
-					target_mac[5] & 0xFF
-				);
+				if (DEBUG_SERVER) {
+					printf(
+						"[Ethernet] Ignored packet addressed to %02X:%02X:%02X:%02X:%02X:%02X\n",
+						target_mac[0] & 0xFF,
+						target_mac[1] & 0xFF,
+						target_mac[2] & 0xFF,
+						target_mac[3] & 0xFF,
+						target_mac[4] & 0xFF,
+						target_mac[5] & 0xFF
+					);
+				}
 				continue;
 			}
 			irc_on_ethernet_packet_received(&msg_data, buffer, length+1);

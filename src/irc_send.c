@@ -140,11 +140,7 @@ int _irc_send_udp_packet(
 	debug_print_send("Setting promiscuous mode: %d\n", op_result);
 	if (op_result < 0) {
 		shutdown(sockfd, 0);
-		int result;
-		printf("about to call 'irc_error_could_not'\n");
-		result = irc_error_could_not("set the interface to promiscuous mode");
-		printf("about to return from '_irc_send_udp_packet' with %d\n", result);
-		return result;
+		return irc_error_could_not("set the interface to promiscuous mode");
 	}
 
 	memset(&if_idx, 0, sizeof(struct ifreq));

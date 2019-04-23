@@ -442,15 +442,6 @@ int main(int argn, char ** argc) {
 
 	irc_put_ethernet_interface_name_by_id(pdt->interface_id, pdt->interface_name, 32);
 
-	pthread_t listener_thread;
-
-	if(pthread_create(&listener_thread, NULL, handle_server, pdt)) {
-		fprintf(stderr, "Error creating thread\n");
-		return 1;
-	}
-
-	clrscr();
-
 	if (strncmp(pdt->target_mac, "FF:FF:FF:FF:FF:FF", 32) == 0) {
 		printf("Finding server by sending broadcast...\n");
 		// find the server by broadcasting <who is server> packet
@@ -464,6 +455,16 @@ int main(int argn, char ** argc) {
 	} else {
 		printf("Loading...\n");
 	}
+
+	pthread_t listener_thread;
+
+	if(pthread_create(&listener_thread, NULL, handle_server, pdt)) {
+		fprintf(stderr, "Error creating thread\n");
+		return 1;
+	}
+
+	clrscr();
+
 
 	irc_start_timer(update_loop);
 	handle_input(pdt);

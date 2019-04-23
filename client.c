@@ -130,9 +130,15 @@ int select_interface(int * output) {
 	}
 }
 
-int select_mac(char * mac_name, char * output, int output_length) {
+int select_mac(char * mac_name, char * output, int output_length, char * default_mac) {
 	char read_buffer[256];
-	printf("Select a %s (or empty for default FF:FF:FF:FF:FF:FF)\n", mac_name);
+	char actual_default_mac[32];
+	if (default_mac != 0) {
+		snprintf(actual_default_mac, 32, "%s", default_mac);
+	} else {
+		snprintf(actual_default_mac, 32, "FF:FF:FF:FF:FF:FF");
+	}
+	printf("Select a %s (or empty for default %s)\n", mac_name, actual_default_mac);
 	fgets(read_buffer, 256, stdin);
 	int i, j, is_separator, is_number, is_letter;
 	j = 0;
@@ -156,7 +162,7 @@ int select_mac(char * mac_name, char * output, int output_length) {
 		output[j++] = read_buffer[i];
 	}
 	if (output[0] == '\0') {
-		snprintf(output, output_length, "FF:FF:FF:FF:FF:FF");
+		snprintf(output, output_length, "%s", actual_default_mac);
 	} else if (j < output_length) {
 		output[j++] = '\0';
 	}
@@ -376,6 +382,43 @@ int server_identified_itself(char * message, int message_length, void * v_origin
 	irc_stop_server();
 }
 
+void read_input_for_addresses() {
+	while (1) {
+		select_interface(&(pdt->interface_id));
+		printf("\n");
+		while (1) {
+			char default_mac[32];
+			snprintf(default_mac, 32, "FF:FF:FF:FF:%02X:%02X", rand() % 255, rand() % 255);
+			select_mac("origin MAC", pdt->origin_mac, 32, default_mac);
+			if (strncmp(pdt->origin_mac, "FF:FF:FF:FF:FF:FF", 32) == 0) {
+				printf("Origin MAC cannot be broadcast\n");
+				continue;
+			}
+			break;
+		}
+		printf("\n");
+		select_ip("origin IP", pdt->origin_ip, 32);
+		printf("\n");
+		select_mac("target MAC", pdt->target_mac, 32, 0);
+		printf("\n");
+		select_ip("target IP", pdt->target_ip, 32);
+		printf("\n");
+		printf("Are you sure the selected values are correct? [y/n] ");
+		char confirm = getch();
+		printf("\n");
+		if (confirm == 'y' || confirm == 'Y' || confirm == 's' || confirm == 'S') {
+			break;
+		}
+	}
+}
+
+void set_default_input_for_addresses() {
+	pdt->interface_id = 0;
+	snprintf(pdt->origin_mac, 32, "FF:FF:FF:FF:%02X:%02X", rand() % 255, rand() % 255);
+	snprintf(pdt->origin_ip, 32, "127.0.0.1");
+	snprintf(pdt->target_mac, 32, "FF:FF:FF:FF:FF:FF");
+	snprintf(pdt->target_ip, 32, "127.0.0.1");
+}
 
 int main(int argn, char ** argc) {
 
@@ -390,31 +433,10 @@ int main(int argn, char ** argc) {
 	for (int i = 0 ; i < SCREEN_DATA_LINE_COUNT; i++) {
 		pdt->screen_data[i][0] = '\0';
 	}
-
-	while (1) {
-		select_interface(&(pdt->interface_id));
-		printf("\n");
-		while (1) {
-			select_mac("origin MAC", pdt->origin_mac, 32);
-			if (strncmp(pdt->origin_mac, "FF:FF:FF:FF:FF:FF", 32) == 0) {
-				printf("Origin MAC cannot be broadcast\n");
-				continue;
-			}
-			break;
-		}
-		printf("\n");
-		select_ip("origin IP", pdt->origin_ip, 32);
-		printf("\n");
-		select_mac("target MAC", pdt->target_mac, 32);
-		printf("\n");
-		select_ip("target IP", pdt->target_ip, 32);
-		printf("\n");
-		printf("Are you sure the selected values are correct? [y/n] ");
-		char confirm = getch();
-		printf("\n");
-		if (confirm == 'y' || confirm == 'Y' || confirm == 's' || confirm == 'S') {
-			break;
-		}
+	if (argn == 2 && argc[1][0] == '-' && argc[1][0] == 'y') {
+		set_default_input_for_addresses();
+	} else {
+		read_input_for_addresses();
 	}
 
 	irc_put_ethernet_interface_name_by_id(pdt->interface_id, pdt->interface_name, 32);
@@ -431,8 +453,13 @@ int main(int argn, char ** argc) {
 	if (strncmp(pdt->target_mac, "FF:FF:FF:FF:FF:FF", 32) == 0) {
 		printf("Finding server by sending broadcast...\n");
 		// find the server by broadcasting <who is server> packet
-		irc_send("/who-is-server", pdt->interface_name, pdt->origin_mac, pdt->origin_ip, pdt->target_mac, pdt->target_ip);
-		irc_server(pdt->interface_name, pdt->origin_mac, server_identified_itself);
+		if (!irc_send("/who-is-server", pdt->interface_name, pdt->origin_mac, pdt->origin_ip, pdt->target_mac, pdt->target_ip)) {
+			printf("Could not send who is server packet\n");
+			return 1;
+		} else {
+			printf("Starting server\n");
+			irc_server(pdt->interface_name, pdt->origin_mac, server_identified_itself);
+		}
 	} else {
 		printf("Loading...\n");
 	}

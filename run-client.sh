@@ -1,1 +1,1 @@
-gcc -o client client.c && ./client lo
+gcc -o client -pthread client.c && ./client -y

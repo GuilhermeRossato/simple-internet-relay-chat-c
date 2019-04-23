@@ -56,7 +56,9 @@ int irc_error_could_not(char * thing) {
 	return 0;
 }
 
-
+int irc_string_equal(char * str1, char * str2, int max_length) {
+	return (strncmp(str1, str2, max_length) == 0);
+}
 
 int _irc_is_string_mac(char * mac) {
 	int i, is_separator, is_number, is_letter;

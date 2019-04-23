@@ -21,14 +21,27 @@
 // Server Interface
 
 /**
- * Sends a IRC broadcast message through an interface
+ * Listen for raw ethernet packets through an interface
+ * The MAC address passed is used to filter ethernet packets (also accepts broadcast)
  *
  * @param interface  The interface to be used for sending the message
+ * @param this_mac	 The MAC address describing when to actually listen to a ethernet packet
  * @param callback   The function to be called when a message is received
+ *                   Callback must receive at least 2 parameters and at most 3 parameters:
+ *                   1. the message char array
+ *                   2. the size of the received message
+ *                   3. a pointer to a [message_data_type] struct containing information about the sender
  *
  * @return           Success Indicator (1 when succeded, 0 when it fails)
  */
-int irc_server(char * interface, char * this_mac, int (*callback)(char *, int));
+int irc_server(char * interface, char * this_mac, int (*callback)(char *, int, void*));
+
+/**
+ * Stops a server if it is in operation, breaking its inner loop
+ *
+ * @return Success indicator (1 when succeded, 0 when it fails)
+ */
+int irc_stop_server();
 
 // Server Implementation
 
@@ -73,9 +86,9 @@ int irc_on_content_received(message_data_type * msg_data, unsigned char * buffer
 		actual_size
 	);
 
-	int (*callback)(char *, int);
+	int (*callback)(char *, int, void *);
 	callback = msg_data->func;
-	callback(buffer+header_size, buffer_size-header_size);
+	callback(buffer+header_size, buffer_size-header_size, (void *) msg_data);
 }
 
 int irc_on_udp_packet_received(message_data_type * msg_data, unsigned char * buffer, unsigned int buffer_size) {
@@ -175,7 +188,17 @@ int irc_on_ethernet_packet_received(message_data_type * msg_data, unsigned char 
 	}
 }
 
-int irc_server(char * interface, char * this_mac, int (*callback)(char *, int)) {
+int irc_is_server_running;
+
+int irc_stop_server() {
+	if (irc_is_server_running == 1) {
+		irc_is_server_running = 0;
+		return 1;
+	}
+	return 0;
+}
+
+int irc_server(char * interface, char * this_mac, int (*callback)(char *, int, void*)) {
 	int sockd;
 	if ((sockd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0) {
 		return irc_error_could_not("open raw socket");
@@ -191,18 +214,22 @@ int irc_server(char * interface, char * this_mac, int (*callback)(char *, int)) 
 	ifr.ifr_flags |= IFF_PROMISC;
 	ioctl(sockd, SIOCSIFFLAGS, &ifr);
 
-	unsigned char buffer[BUFFSIZE+1];
+	unsigned char buffer[BUFFSIZE+2];
 	int length;
 	message_data_type msg_data;
 	msg_data.func = callback;
 	unsigned char target_mac[6];
 	// Convert input to binary mac if it is necessary
 	if (_irc_is_string_mac(this_mac)) {
-		_irc_mac_to_binary(this_mac, target_mac);
-		memcpy(this_mac, target_mac, 6);
+		_irc_mac_to_binary(this_mac, buffer);
+		memcpy((void *) this_mac, buffer, 6);
 	}
+	irc_is_server_running = 1;
 	while (1) {
-		length = recvfrom(sockd,(char *) &buffer, sizeof(buffer)+1, 0x0, NULL, NULL);
+		if (irc_is_server_running != 1) {
+			break;
+		}
+		length = recvfrom(sockd,(char *) &buffer, BUFFSIZE+1, 0x0, NULL, NULL);
 		if (length <= 20) {
 			continue;
 		} else {

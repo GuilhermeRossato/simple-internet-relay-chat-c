@@ -1,6 +1,9 @@
 #include "./src/irc.h"
 
 int receive(char * message, int message_length) {
+	if (irc_compare_two_strings(message, "/who-is-server", message_length)) {
+
+	}
 	printf("Received %d bytes: %s\n", message_length, message);
 }
 

@@ -344,7 +344,7 @@ int handle_input(pipe_data_type * pdt) {
 }
 
 int receive(char * message, int message_length, void * origin) {
-	if (irc_string_equal(message, "/terminate-client")) {
+	if (irc_compare_two_strings(message, "/terminate-client", message_length)) {
 		irc_stop_server();
 		printf("The client was terminated remotely\n");
 	}

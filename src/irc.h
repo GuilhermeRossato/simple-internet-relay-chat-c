@@ -20,7 +20,7 @@ int irc_is_command(char * message, char * command) {
 	if (message[0] != '/') {
 		return 0;
 	}
-	if (_irc_compare_two_strings(message+1, command, strlen(command))) {
+	if (irc_compare_two_strings(message+1, command, strlen(command))) {
 		return 1;
 	}
 	return 0;

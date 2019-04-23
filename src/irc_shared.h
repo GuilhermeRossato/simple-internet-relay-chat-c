@@ -24,7 +24,7 @@ typedef struct irc_node {
 irc_node * irc_root_node = 0;
 irc_node * irc_last_node = 0;
 
-int _irc_compare_two_strings(char * a, char * b, int max_length) {
+int irc_compare_two_strings(char * a, char * b, int max_length) {
 	if (a == b) {
 		return 1;
 	} else if (a == 0 || b == 0) {
@@ -54,10 +54,6 @@ int irc_error_malloc_failed(char * context) {
 int irc_error_could_not(char * thing) {
 	printf("IRC Error: Could not %s due to an error result\n", thing);
 	return 0;
-}
-
-int irc_string_equal(char * str1, char * str2, int max_length) {
-	return (strncmp(str1, str2, max_length) == 0);
 }
 
 int _irc_is_string_mac(char * mac) {

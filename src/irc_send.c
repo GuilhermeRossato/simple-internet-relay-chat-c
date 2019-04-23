@@ -24,7 +24,7 @@ int irc_send(char * message, char * interface, char * origin_mac, char * origin_
 
 // Send Implementation
 
-#define DEBUG_SEND 0
+#define DEBUG_SEND 1
 #define debug_print_send(fmt, ...) \
         do { if (DEBUG_SEND) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); } while (0)
 
@@ -84,7 +84,9 @@ int irc_send_udp_data(
 	_irc_mac_to_binary(target_mac, (uint8_t *) binary_target_mac);
 	_irc_ip_to_binary(target_ip, (uint8_t *) binary_target_ip);
 
-	return _irc_send_udp_packet(
+	int result;
+	printf("about to call '_irc_send_udp_packet'\n");
+	result = _irc_send_udp_packet(
 		interface,
 
 		binary_origin_mac,
@@ -98,6 +100,8 @@ int irc_send_udp_data(
 		message,
 		message_size
 	);
+	printf("about to return from 'irc_send_udp_data' %d", result);
+	return result;
 }
 
 int _irc_send_udp_packet(
@@ -119,7 +123,6 @@ int _irc_send_udp_packet(
 	int sockfd;
 	uint8_t * msg = message;
     int message_buffer_size = message_size;
-	printf("started packet sending %d\n", message_buffer_size);
 
 	sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 	if (sockfd == -1) {
@@ -136,7 +139,12 @@ int _irc_send_udp_packet(
 	op_result = ioctl(sockfd, SIOCSIFFLAGS, &ifopts);
 	debug_print_send("Setting promiscuous mode: %d\n", op_result);
 	if (op_result < 0) {
-		return irc_error_could_not("set the interface to promiscuous mode");
+		shutdown(sockfd, 0);
+		int result;
+		printf("about to call 'irc_error_could_not'\n");
+		result = irc_error_could_not("set the interface to promiscuous mode");
+		printf("about to return from '_irc_send_udp_packet' with %d\n", result);
+		return result;
 	}
 
 	memset(&if_idx, 0, sizeof(struct ifreq));
@@ -144,6 +152,7 @@ int _irc_send_udp_packet(
 	op_result = ioctl(sockfd, SIOCGIFINDEX, &if_idx);
 	debug_print_send("Getting the index of the interface: %d\n", op_result);
 	if (op_result < 0) {
+		shutdown(sockfd, 0);
 		return irc_error_could_not("get the index of the interface");
 	}
 	socket_address.sll_ifindex = if_idx.ifr_ifindex;
@@ -192,19 +201,22 @@ int _irc_send_udp_packet(
 	);
 	memcpy(socket_address.sll_addr, binary_target_mac, 6);
 	if (sendto(sockfd, buffer_u.raw_data, sizeof(struct eth_hdr) + sizeof(struct ip_hdr) + sizeof(struct udp_hdr) + message_buffer_size, 0, (struct sockaddr*)&socket_address, sizeof(struct sockaddr_ll)) < 0) {
+		shutdown(sockfd, 0);
 		return irc_error_could_not("send the message");
 	}
 
+	shutdown(sockfd, 0);
 	return 1;
 }
 
 int irc_send(char * message, char * interface, char * origin_mac, char * origin_ip, char * target_mac, char * target_ip) {
 	int length = strlen(message) + 1;
 	int buffer_size = length + 4 + 1;
-	char * buffer = (char *) malloc((sizeof(char) * buffer_size));
+	char * buffer = (char *) malloc((sizeof(char) * buffer_size) + 1);
 	snprintf(buffer, buffer_size-1, "IRC%s", message);
 	buffer[buffer_size-1] = '\0';
 
+	printf("about to call irc_send_udp_data\n");
 	int result = irc_send_udp_data(
 		interface,
 		origin_mac,
@@ -216,6 +228,7 @@ int irc_send(char * message, char * interface, char * origin_mac, char * origin_
 		buffer,
 		buffer_size
 	);
+	printf("got %d upp\n", result);
 
 	free(buffer);
 

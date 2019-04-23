@@ -433,7 +433,8 @@ int main(int argn, char ** argc) {
 	for (int i = 0 ; i < SCREEN_DATA_LINE_COUNT; i++) {
 		pdt->screen_data[i][0] = '\0';
 	}
-	if (argn == 2 && argc[1][0] == '-' && argc[1][0] == 'y') {
+
+	if (argn == 2 && argc[1][0] == '-' && argc[1][1] == 'y') {
 		set_default_input_for_addresses();
 	} else {
 		read_input_for_addresses();

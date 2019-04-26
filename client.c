@@ -6,11 +6,12 @@
 
 int user_input_index = 0;
 int user_input_length = 0;
+char last_user_input[128];
 char user_input[128];
 int is_input_insert = 0;
 int flashing_indication = 0;
 
-#define SCREEN_DATA_LINE_COUNT	22
+#define SCREEN_DATA_LINE_COUNT	16
 
 typedef struct pipe_data_type {
 	int is_program_finished;
@@ -25,6 +26,7 @@ typedef struct pipe_data_type {
 	char target_ip[32];
 	char screen_data[128][SCREEN_DATA_LINE_COUNT];
 	int screen_data_index;
+	int is_waiting_server_origin;
 } pipe_data_type;
 
 pipe_data_type * pdt;
@@ -36,11 +38,40 @@ void print_date() {
 }
 
 void update_screen() {
-	gotoxy(0, 0);
+	clrscr();
 	// Header
+	printf("\n");
 	printf("| IRC Client | Time: ");
 	print_date();
-	printf("                           ");
+	printf("\nClient Address: ");
+	if (_irc_is_string_mac(pdt->origin_mac)) {
+		printf("%s", pdt->origin_mac);
+	} else {
+		printf(
+			"%02X:%02X:%02X:%02X:%02X:%02X",
+			pdt->origin_mac[0] & 0xFF,
+			pdt->origin_mac[1] & 0xFF,
+			pdt->origin_mac[2] & 0xFF,
+			pdt->origin_mac[3] & 0xFF,
+			pdt->origin_mac[4] & 0xFF,
+			pdt->origin_mac[5] & 0xFF
+		);
+	}
+	printf(" | Server Address: ");
+	if (_irc_is_string_mac(pdt->target_mac)) {
+		printf("%s", pdt->target_mac);
+	} else {
+		printf(
+			"%02X:%02X:%02X:%02X:%02X:%02X",
+			pdt->target_mac[0] & 0xFF,
+			pdt->target_mac[1] & 0xFF,
+			pdt->target_mac[2] & 0xFF,
+			pdt->target_mac[3] & 0xFF,
+			pdt->target_mac[4] & 0xFF,
+			pdt->target_mac[5] & 0xFF
+		);	
+	}
+	printf("\n");
 
 	// Content
 	int i;
@@ -49,9 +80,8 @@ void update_screen() {
 		if (i+1 >= height) {
 			break;
 		}
-		gotoxy(0, i+2);
 		if (i == SCREEN_DATA_LINE_COUNT) {
-			printf("                                                ");
+			printf("                                          \n");
 		} else {
 			printf("%s\n", pdt->screen_data[i]);
 		}
@@ -59,9 +89,7 @@ void update_screen() {
 	printf("\n");
 
 	// User input
-	gotoxy(0, height-1);
-	printf("                                                      ");
-	gotoxy(0, height-1);
+	printf("\n\n");
 	printf(" > ");
 
 	for(i=0;i<user_input_length;i++) {
@@ -73,13 +101,19 @@ void update_screen() {
 		}
 		if (i == user_input_index && flashing_indication == 1) {
 			putchar('_');
+			continue;
 		}
 		putchar(user_input[i]);
 	}
-	printf(" %d\n", user_input_index);
+	printf("  \n");
 }
 
 void update_loop() {
+	if (pdt->is_waiting_server_origin) {
+		if (!irc_send("/who-is-server", pdt->interface_name, pdt->origin_mac, pdt->origin_ip, pdt->target_mac, pdt->target_ip)) {
+			printf("Failed sending 'who is server' packet\n");
+		}
+	}
 	if (pdt->is_program_finished == 1) {
 		exit(1);
 	}
@@ -337,13 +371,15 @@ int handle_input(pipe_data_type * pdt) {
 		} else if (input == 10) {
 			// enter (send)
 			// send to server
-			irc_send(user_input, pdt->interface_name, pdt->origin_mac, pdt->origin_ip, pdt->target_mac, pdt->target_ip);
+			snprintf(last_user_input, 128, "%s", user_input);
+			last_user_input[127] = '\0';
+			irc_send(last_user_input, pdt->interface_name, pdt->origin_mac, pdt->origin_ip, pdt->target_mac, pdt->target_ip);
 
 			// clear user input
 			user_input_index = 0;
 			user_input_length = 0;
 			user_input[0] = '\0';
-			update_screen();
+			//update_screen();
 		} else if (is_character_acceptable(input)) {
 			add_character_to_input(input);
 			update_screen();
@@ -354,6 +390,7 @@ int handle_input(pipe_data_type * pdt) {
 }
 
 int receive(char * message, int message_length, void * origin) {
+	printf("Client received %d bytes: %s\n", message_length, message);
 	if (irc_compare_two_strings(message, "/terminate-client", message_length)) {
 		irc_stop_server();
 		printf("The client was terminated remotely\n");
@@ -369,14 +406,15 @@ void * handle_server(void * pdt_v) {
 int server_identified_itself(char * message, int message_length, void * v_origin) {
 	message_data_type * origin = (message_data_type *) v_origin;
 	printf(
-		"Got server MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
-		origin->origin_mac[0],
-		origin->origin_mac[1],
-		origin->origin_mac[2],
-		origin->origin_mac[3],
-		origin->origin_mac[4],
-		origin->origin_mac[5]
+		"Server replied from MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+		origin->origin_mac[0] & 0xFF,
+		origin->origin_mac[1] & 0xFF,
+		origin->origin_mac[2] & 0xFF,
+		origin->origin_mac[3] & 0xFF,
+		origin->origin_mac[4] & 0xFF,
+		origin->origin_mac[5] & 0xFF
 	);
+	pdt->is_waiting_server_origin = 0;
 	memcpy(pdt->target_mac, origin->origin_mac, 6);
 	pdt->target_mac[6] = '\0';
 	irc_stop_server();
@@ -414,7 +452,7 @@ void read_input_for_addresses() {
 
 void set_default_input_for_addresses() {
 	pdt->interface_id = 0;
-	snprintf(pdt->origin_mac, 32, "FF:FF:FF:FF:%02X:%02X", rand() % 255, rand() % 255);
+	snprintf(pdt->origin_mac, 32, "%02X:FF:FF:FF:%02X:%02X", rand() % 255, rand() % 255, rand() % 255);
 	snprintf(pdt->origin_ip, 32, "127.0.0.1");
 	snprintf(pdt->target_mac, 32, "FF:FF:FF:FF:FF:FF");
 	snprintf(pdt->target_ip, 32, "127.0.0.1");
@@ -429,6 +467,8 @@ int main(int argn, char ** argc) {
 	pdt->interface_id = -1;
 	pdt->send_message_buffer = 0;
 	pdt->screen_data_index = 0;
+	pdt->is_waiting_server_origin = 0;
+
 	snprintf(pdt->username, 32, "unnamed");
 	for (int i = 0 ; i < SCREEN_DATA_LINE_COUNT; i++) {
 		pdt->screen_data[i][0] = '\0';
@@ -442,16 +482,12 @@ int main(int argn, char ** argc) {
 
 	irc_put_ethernet_interface_name_by_id(pdt->interface_id, pdt->interface_name, 32);
 
+	irc_start_timer(update_loop);
+
 	if (strncmp(pdt->target_mac, "FF:FF:FF:FF:FF:FF", 32) == 0) {
 		printf("Finding server by sending broadcast...\n");
-		// find the server by broadcasting <who is server> packet
-		if (!irc_send("/who-is-server", pdt->interface_name, pdt->origin_mac, pdt->origin_ip, pdt->target_mac, pdt->target_ip)) {
-			printf("Could not send who is server packet\n");
-			return 1;
-		} else {
-			printf("Starting server\n");
-			irc_server(pdt->interface_name, pdt->origin_mac, server_identified_itself);
-		}
+		pdt->is_waiting_server_origin = 1;
+		irc_server(pdt->interface_name, pdt->origin_mac, server_identified_itself);
 	} else {
 		printf("Loading...\n");
 	}
@@ -463,10 +499,6 @@ int main(int argn, char ** argc) {
 		return 1;
 	}
 
-	clrscr();
-
-
-	irc_start_timer(update_loop);
 	handle_input(pdt);
 	pdt->is_program_finished = 1;
 	pthread_join(listener_thread, NULL);

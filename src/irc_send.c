@@ -85,7 +85,7 @@ int irc_send_udp_data(
 	_irc_ip_to_binary(target_ip, (uint8_t *) binary_target_ip);
 
 	int result;
-	printf("about to call '_irc_send_udp_packet'\n");
+
 	result = _irc_send_udp_packet(
 		interface,
 
@@ -100,7 +100,7 @@ int irc_send_udp_data(
 		message,
 		message_size
 	);
-	printf("about to return from 'irc_send_udp_data' %d", result);
+
 	return result;
 }
 
@@ -187,7 +187,8 @@ int _irc_send_udp_packet(
 	memcpy(buffer_u.raw_data + sizeof(struct eth_hdr) + sizeof(struct ip_hdr) + sizeof(struct udp_hdr), msg, message_buffer_size);
 
 	debug_print_send(
-		"Sending to mac: %02X:%02X:%02X:%02X:%02X:%02X",
+		"Sending %d bytes to mac: %02X:%02X:%02X:%02X:%02X:%02X\n",
+		message_size,
 		binary_target_mac[0],
 		binary_target_mac[1],
 		binary_target_mac[2],
@@ -212,7 +213,6 @@ int irc_send(char * message, char * interface, char * origin_mac, char * origin_
 	snprintf(buffer, buffer_size-1, "IRC%s", message);
 	buffer[buffer_size-1] = '\0';
 
-	printf("about to call irc_send_udp_data\n");
 	int result = irc_send_udp_data(
 		interface,
 		origin_mac,
@@ -224,7 +224,6 @@ int irc_send(char * message, char * interface, char * origin_mac, char * origin_
 		buffer,
 		buffer_size
 	);
-	printf("got %d upp\n", result);
 
 	free(buffer);
 

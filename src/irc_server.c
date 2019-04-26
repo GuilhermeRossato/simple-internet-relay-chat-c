@@ -47,7 +47,7 @@ int irc_stop_server();
 
 #define BUFFSIZE 1518
 
-#define DEBUG_SERVER 0
+#define DEBUG_SERVER 1
 #define debug_print_server(fmt, ...) \
         do { if (DEBUG_SERVER) fprintf(stderr, "%s:%d:%s():\n" fmt "\n", __FILE__, __LINE__, __func__, __VA_ARGS__); } while (0)
 
@@ -228,11 +228,34 @@ int irc_server(char * interface, char * this_mac, int (*callback)(char *, int, v
 	irc_is_server_running = 1;
 	int is_broadcast, is_targeted;
 
+	debug_print_server(
+		"Starting server at interface %s with MAC %02X:%02X:%02X:%02X:%02X:%02X",
+		interface,
+		this_mac[0] & 0xFF,
+		this_mac[1] & 0xFF,
+		this_mac[2] & 0xFF,
+		this_mac[3] & 0xFF,
+		this_mac[4] & 0xFF,
+		this_mac[5] & 0xFF
+	);
+
 	while (1) {
 		if (irc_is_server_running != 1) {
 			break;
 		}
 		length = recvfrom(sockd,(char *) &buffer, BUFFSIZE+1, 0x0, NULL, NULL);
+		if (
+			length >= 5 &&
+			(buffer[0] & 0xFF) == 0 &&
+			(buffer[1] & 0xFF) == 0 &&
+			(buffer[2] & 0xFF) == 0 &&
+			(buffer[3] & 0xFF) == 0 &&
+			(buffer[4] & 0xFF) == 0 &&
+			(buffer[5] & 0xFF) == 0
+		) {
+			continue;
+		}
+		debug_print_server("Received %d bytes", length);
 		if (length <= 20) {
 			continue;
 		} else {

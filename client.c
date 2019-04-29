@@ -11,7 +11,7 @@ char user_input[128];
 int is_input_insert = 0;
 int flashing_indication = 0;
 
-#define SCREEN_DATA_LINE_COUNT	16
+#define SCREEN_DATA_LINE_COUNT	15
 
 typedef struct pipe_data_type {
 	int is_program_finished;
@@ -26,6 +26,7 @@ typedef struct pipe_data_type {
 	char target_ip[32];
 	char screen_data[128][SCREEN_DATA_LINE_COUNT];
 	int screen_data_index;
+	int just_skip;
 	int is_waiting_server_origin;
 } pipe_data_type;
 
@@ -34,11 +35,14 @@ pipe_data_type * pdt;
 void print_date() {
 	time_t t = time(NULL);
 	struct tm tm = *localtime(&t);
-	printf("%d-%d-%d %d:%d:%d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+	printf("%02d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
 
 void update_screen() {
-	clrscr();
+	if (pdt->is_waiting_server_origin == 1) {
+		return;
+	}
+	//clrscr();
 	// Header
 	printf("\n");
 	printf("| IRC Client | Time: ");
@@ -76,6 +80,7 @@ void update_screen() {
 	// Content
 	int i;
 	int height = irc_get_console_height();
+
 	for (i=0;i<=SCREEN_DATA_LINE_COUNT;i++) {
 		if (i+1 >= height) {
 			break;
@@ -86,6 +91,7 @@ void update_screen() {
 			printf("%s\n", pdt->screen_data[i]);
 		}
 	}
+
 	printf("\n");
 
 	// User input
@@ -117,8 +123,10 @@ void update_loop() {
 	if (pdt->is_program_finished == 1) {
 		exit(1);
 	}
-	flashing_indication = flashing_indication == 0 ? 1 : 0;
-	update_screen();
+	if (pdt->just_skip == 0) {
+		flashing_indication = flashing_indication == 0 ? 1 : 0;
+		update_screen();
+	}
 }
 
 int select_interface(int * output) {
@@ -253,7 +261,8 @@ int is_character_acceptable(char letter) {
 		letter == '(' ||
 		letter == ')' ||
 		letter == '[' ||
-		letter == ']');
+		letter == ']' ||
+		letter == ' ');
 	int is_number = (letter >= '0' && letter <= '9');
 	int is_letter = ((letter >= 'a' && letter <= 'z') || (letter >= 'A' && letter <= 'Z'));
 
@@ -373,7 +382,9 @@ int handle_input(pipe_data_type * pdt) {
 			// send to server
 			snprintf(last_user_input, 128, "%s", user_input);
 			last_user_input[127] = '\0';
-			irc_send(last_user_input, pdt->interface_name, pdt->origin_mac, pdt->origin_ip, pdt->target_mac, pdt->target_ip);
+			if (last_user_input[0] != '\0' && last_user_input[1] != '\0') {
+				irc_send(last_user_input, pdt->interface_name, pdt->origin_mac, pdt->origin_ip, pdt->target_mac, pdt->target_ip);
+			}
 
 			// clear user input
 			user_input_index = 0;
@@ -404,6 +415,10 @@ void * handle_server(void * pdt_v) {
 }
 
 int server_identified_itself(char * message, int message_length, void * v_origin) {
+	if (message[0] != '/' || message[1] != 'i' || message[3] != 'a' || message[4] != 'm') {
+		printf("Ignored invalid who is server packet\n");
+		return 0;
+	}
 	message_data_type * origin = (message_data_type *) v_origin;
 	printf(
 		"Server replied from MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
@@ -474,15 +489,17 @@ int main(int argn, char ** argc) {
 		pdt->screen_data[i][0] = '\0';
 	}
 
+	pdt->just_skip = 1;
+	irc_start_timer(update_loop);
+
 	if (argn == 2 && argc[1][0] == '-' && argc[1][1] == 'y') {
 		set_default_input_for_addresses();
 	} else {
 		read_input_for_addresses();
 	}
+	pdt->just_skip = 0;
 
 	irc_put_ethernet_interface_name_by_id(pdt->interface_id, pdt->interface_name, 32);
-
-	irc_start_timer(update_loop);
 
 	if (strncmp(pdt->target_mac, "FF:FF:FF:FF:FF:FF", 32) == 0) {
 		printf("Finding server by sending broadcast...\n");

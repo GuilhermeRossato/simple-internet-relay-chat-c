@@ -21,12 +21,12 @@ int reply(char * message, message_data_type * origin) {
 
 int receive(char * message, int message_length, void * v_origin) {
 	message_data_type * origin = (message_data_type *) v_origin;
-	printf("Received %d bytes: %s\n", message_length, message);
+	//printf("Received %d bytes: \"IRC%s\"\n", message_length, message);
 	// TODO:
 	// check if user exists adding it if it does not exist.
 	// implement other commands
 	if (irc_compare_two_strings(message, "/who-is-server", message_length)) {
-		return reply("I am", origin);
+		return reply("/i-am", origin);
 	}
 }
 

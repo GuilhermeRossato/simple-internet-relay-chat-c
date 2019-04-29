@@ -47,7 +47,7 @@ int irc_stop_server();
 
 #define BUFFSIZE 1518
 
-#define DEBUG_SERVER 1
+#define DEBUG_SERVER 0
 #define debug_print_server(fmt, ...) \
         do { if (DEBUG_SERVER) fprintf(stderr, "%s:%d:%s():\n" fmt "\n", __FILE__, __LINE__, __func__, __VA_ARGS__); } while (0)
 
@@ -86,6 +86,16 @@ int irc_on_content_received(message_data_type * msg_data, unsigned char * buffer
 		actual_size
 	);
 
+
+	char * binary_origin_mac = msg_data->origin_mac;
+	char * binary_target_mac = msg_data->target_mac;
+
+/*
+	printf("Received from %02X:%02X:%02X:%02X\n", binary_origin_mac[0] & 0xFF, binary_origin_mac[1] & 0xFF, binary_origin_mac[2] & 0xFF, binary_origin_mac[3] & 0xFF);
+	printf("Received to   %02X:%02X:%02X:%02X\n", binary_target_mac[0] & 0xFF, binary_target_mac[1] & 0xFF, binary_target_mac[2] & 0xFF, binary_target_mac[3] & 0xFF);
+	printf("Received %d bytes: \"%s\"\n", buffer_size, buffer);
+*/
+
 	int (*callback)(char *, int, void *);
 	callback = msg_data->func;
 	callback(buffer+header_size, buffer_size-header_size, (void *) msg_data);
@@ -96,7 +106,7 @@ int irc_on_udp_packet_received(message_data_type * msg_data, unsigned char * buf
 	msg_data->target_port = ((int) ((int) buffer[2] & 0xff) << 8) + ((int) buffer[3] & 0xff);
 	int total_length = ((int) (buffer[4] & 0xff) << 8) + buffer[5] & 0xff;
 	int actual_size = ((buffer_size < total_length)?buffer_size:total_length);
-
+	
 	debug_print_server(
 		"      [UDP] Size: %d - Source Port: %5d - Target Port %5d",
 		actual_size,
@@ -144,7 +154,7 @@ int irc_on_ip_packet_received(message_data_type * msg_data, unsigned char * buff
 int irc_on_ethernet_packet_received(message_data_type * msg_data, unsigned char * buffer, unsigned int buffer_size) {
 	int type;
 
-	unsigned long * check = (unsigned long * ) buffer;
+	unsigned long * check = (unsigned long *) buffer;
 	if (*check == 0) {
 		return 0;
 	}
@@ -220,16 +230,17 @@ int irc_server(char * interface, char * this_mac, int (*callback)(char *, int, v
 	message_data_type msg_data;
 	msg_data.func = callback;
 	unsigned char target_mac[6];
+	unsigned char origin_mac[6];
 	// Convert input to binary mac if it is necessary
 	if (_irc_is_string_mac(this_mac)) {
 		_irc_mac_to_binary(this_mac, buffer);
 		memcpy((void *) this_mac, buffer, 6);
 	}
 	irc_is_server_running = 1;
-	int is_broadcast, is_targeted;
+	int is_broadcast, is_targeted, is_origin_self;
 
-	debug_print_server(
-		"Starting server at interface %s with MAC %02X:%02X:%02X:%02X:%02X:%02X",
+	printf(
+		"Starting server at interface %s with MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
 		interface,
 		this_mac[0] & 0xFF,
 		this_mac[1] & 0xFF,
@@ -255,11 +266,12 @@ int irc_server(char * interface, char * this_mac, int (*callback)(char *, int, v
 		) {
 			continue;
 		}
-		debug_print_server("Received %d bytes", length);
+		/* debug_print_server("Received %d bytes", length); */
 		if (length <= 20) {
 			continue;
 		} else {
 			memcpy((void *) target_mac, buffer, 6);
+			memcpy((void *) origin_mac, &buffer[6], 6);
 			is_broadcast = (
 				target_mac[0] == 0xFF &&
 				target_mac[1] == 0xFF &&
@@ -269,13 +281,27 @@ int irc_server(char * interface, char * this_mac, int (*callback)(char *, int, v
 				target_mac[5] == 0xFF
 			);
 			is_targeted = (
-				target_mac[0] == this_mac[0] &&
-				target_mac[1] == this_mac[1] &&
-				target_mac[2] == this_mac[2] &&
-				target_mac[3] == this_mac[3] &&
-				target_mac[4] == this_mac[4] &&
-				target_mac[5] == this_mac[5]
+				(target_mac[0] & 0xFF) == (this_mac[0] & 0xFF) &&
+				(target_mac[1] & 0xFF) == (this_mac[1] & 0xFF) &&
+				(target_mac[2] & 0xFF) == (this_mac[2] & 0xFF) &&
+				(target_mac[3] & 0xFF) == (this_mac[3] & 0xFF) &&
+				(target_mac[4] & 0xFF) == (this_mac[4] & 0xFF) &&
+				(target_mac[5] & 0xFF) == (this_mac[5] & 0xFF)
 			);
+			is_origin_self = (
+				(origin_mac[0] & 0xFF) == (this_mac[0] & 0xFF) &&
+				(origin_mac[1] & 0xFF) == (this_mac[1] & 0xFF) &&
+				(origin_mac[2] & 0xFF) == (this_mac[2] & 0xFF) &&
+				(origin_mac[3] & 0xFF) == (this_mac[3] & 0xFF) &&
+				(origin_mac[4] & 0xFF) == (this_mac[4] & 0xFF) &&
+				(origin_mac[5] & 0xFF) == (this_mac[5] & 0xFF)
+			);
+			if (is_origin_self) {
+				if (DEBUG_SERVER) {
+					printf("Skipping ethernet packet sent by myself\n");
+				}
+				continue;
+			}
 			if (!is_broadcast && !is_targeted) {
 				if (DEBUG_SERVER) {
 					printf(

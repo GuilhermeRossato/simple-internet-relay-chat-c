@@ -95,12 +95,35 @@ int _irc_is_string_ip(char * ip) {
 	return 1;
 }
 
-int _irc_mac_to_binary(char * mac, uint8_t * binary_mac) {
-	if (!_irc_is_string_mac(mac)) {
-		memcpy(binary_mac, mac, 6);
+unsigned char hex_digit( char ch )
+{
+    if(             ( '0' <= ch ) && ( ch <= '9' ) ) { ch -= '0'; }
+    else
+    {
+        if(         ( 'a' <= ch ) && ( ch <= 'f' ) ) { ch += 10 - 'a'; }
+        else
+        {
+            if(     ( 'A' <= ch ) && ( ch <= 'F' ) ) { ch += 10 - 'A'; }
+            else                                     { ch = 16; }
+        }
+    }
+    return ch;
+}
+
+int _irc_mac_to_binary(char * macStr, uint8_t * binary_mac) {
+	if (!_irc_is_string_mac(macStr)) {
+		memcpy(binary_mac, macStr, 6);
 		return 1;
 	}
-	sscanf(mac,"%x:%x:%x:%x:%x:%x", (unsigned int *) &binary_mac[0], (unsigned int *) &binary_mac[1], (unsigned int *) &binary_mac[2], (unsigned int *) &binary_mac[3], (unsigned int *) &binary_mac[4], (unsigned int *) &binary_mac[5]);
+	unsigned char mac[6];
+	sscanf(macStr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
+	binary_mac[0] = mac[0];
+	binary_mac[1] = mac[1];
+	binary_mac[2] = mac[2];
+	binary_mac[3] = mac[3];
+	binary_mac[4] = mac[4];
+	binary_mac[5] = mac[5];
+
 	return 1;
 }
 

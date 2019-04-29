@@ -24,7 +24,7 @@ int irc_send(char * message, char * interface, char * origin_mac, char * origin_
 
 // Send Implementation
 
-#define DEBUG_SEND 1
+#define DEBUG_SEND 0
 #define debug_print_send(fmt, ...) \
         do { if (DEBUG_SEND) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); } while (0)
 
@@ -79,10 +79,17 @@ int irc_send_udp_data(
 	uint8_t binary_target_mac[6+1];
 	uint8_t binary_target_ip[4+1];
 
-	_irc_mac_to_binary(origin_mac, (uint8_t *) binary_origin_mac);
 	_irc_ip_to_binary(origin_ip, (uint8_t *) binary_origin_ip);
-	_irc_mac_to_binary(target_mac, (uint8_t *) binary_target_mac);
+	_irc_mac_to_binary(origin_mac, (uint8_t *) binary_origin_mac);
+
 	_irc_ip_to_binary(target_ip, (uint8_t *) binary_target_ip);
+	_irc_mac_to_binary(target_mac, (uint8_t *) binary_target_mac);
+
+/*
+	printf("Sending from %02X:%02X:%02X:%02X\n", binary_origin_mac[0] & 0xFF, binary_origin_mac[1] & 0xFF, binary_origin_mac[2] & 0xFF, binary_origin_mac[3] & 0xFF);
+	printf("Sending to   %02X:%02X:%02X:%02X\n", binary_target_mac[0] & 0xFF, binary_target_mac[1] & 0xFF, binary_target_mac[2] & 0xFF, binary_target_mac[3] & 0xFF);
+	printf("Sending %d bytes: \"%s\"\n", message_size, message);
+*/
 
 	int result;
 
@@ -220,7 +227,7 @@ int irc_send(char * message, char * interface, char * origin_mac, char * origin_
 		8080,
 		target_mac,
 		target_ip,
-		8080,
+		8081,
 		buffer,
 		buffer_size
 	);

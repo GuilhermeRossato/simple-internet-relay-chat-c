@@ -19,15 +19,67 @@ int reply(char * message, message_data_type * origin) {
 	);
 }
 
+int apply_broadcast(message_data_type * origin, char * message) {
+	if (message[0] != '<') {
+		// Do not send broadcast without an username
+		return 0;
+	}
+	int user_id = 0;
+	char * origin_string;
+	char target_mac[IRC_BUFFER_SIZE];
+	char target_ip[IRC_BUFFER_SIZE];
+	printf("Sending broadcast message '%s'\n", message);
+	do {
+		origin_string = irc_get_user_origin_by_id(user_id++);
+		if (origin_string == 0) {
+			break;
+		}
+		irc_split_string(origin_string, '|', target_mac, target_ip, IRC_BUFFER_SIZE);
+		irc_send(
+			message,
+			pdt->interface_name,
+			pdt->origin_mac,
+			origin->target_ip,
+			target_mac,
+			target_ip
+		);
+	} while (origin_string != 0);
+}
+
+int validate_user_or_create(char * origin_string) {
+	if (!irc_check_user_by_origin(origin_string)) {
+		char user_name[IRC_BUFFER_SIZE];
+		snprintf(user_name, IRC_BUFFER_SIZE, "unnamed%d", 1+(rand()%99));
+		printf("Adding new user \"%s\" from %s\n", user_name, origin_string);
+		irc_create_user(origin_string, user_name);
+	}
+}
+
 int receive(char * message, int message_length, void * v_origin) {
 	message_data_type * origin = (message_data_type *) v_origin;
-	//printf("Received %d bytes: \"IRC%s\"\n", message_length, message);
-	// TODO:
-	// check if user exists adding it if it does not exist.
-	// implement other commands
+
 	if (irc_compare_two_strings(message, "/who-is-server", message_length)) {
 		return reply("/i-am", origin);
 	}
+
+	char origin_string[IRC_BUFFER_SIZE];
+	irc_put_origin_by_mac_and_ip(origin->origin_mac, origin->origin_ip, origin_string, IRC_BUFFER_SIZE);
+
+	// Assert the user exists, creating it if it does not.
+	validate_user_or_create(origin_string);
+
+	// Handle broadcast
+	if (message[0] != '/') {
+		char * user_name = irc_get_user_name_by_origin(origin_string);
+		char message_with_name[IRC_BUFFER_SIZE+32];
+		if (user_name == 0) {
+			snprintf(message_with_name, IRC_BUFFER_SIZE+32, "<Unknown> %s", message);
+		} else {
+			snprintf(message_with_name, IRC_BUFFER_SIZE+32, "<%s> %s", user_name, message);
+		}
+		return apply_broadcast(origin, message_with_name);
+	}
+
 }
 
 int select_interface(int * output) {

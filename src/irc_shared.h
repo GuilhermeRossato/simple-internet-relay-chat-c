@@ -40,18 +40,22 @@ int irc_error_object_already_exists(char * object_name) {
 	printf("IRC Error: The %s already exists\n", object_name);
 	return 0;
 }
+
 int irc_error_invalid_something(char * something) {
 	printf("IRC Error: The %s is invalid\n", something);
 	return 0;
 }
+
 int irc_error_object_not_found(char * object_name) {
 	printf("IRC Error: The %s was not found\n", object_name);
 	return 0;
 }
+
 int irc_error_malloc_failed(char * context) {
 	printf("IRC Error: Malloc failed at %s\n", context);
 	return 0;
 }
+
 int irc_error_could_not(char * thing) {
 	printf("IRC Error: Could not %s due to an error result\n", thing);
 	return 0;
@@ -79,6 +83,40 @@ int _irc_is_string_mac(char * mac) {
 	return 1;
 }
 
+int irc_split_string(char * original_string, char separator, char * left_buffer, char * right_buffer, int individual_buffer_size) {
+	int i;
+	int j = 0;
+	int left_buffer_index = 0;
+	int right_buffer_index = 0;
+	for (i=0;i < individual_buffer_size*2; i++) {
+		if (j == 0) {
+			if (original_string[i] == '\0') {
+				left_buffer[left_buffer_index++] = '\0';
+				right_buffer[0] = '\0';
+				break;
+			} else if (original_string[i] == separator) {
+				left_buffer[left_buffer_index++] = '\0';
+				j = 1;
+			} else {
+				if (left_buffer_index >= individual_buffer_size-1) {
+					left_buffer[individual_buffer_size-1] = '\0';
+				} else {
+					left_buffer[left_buffer_index++] = original_string[i];
+				}
+			}
+		} else {
+			if (right_buffer_index >= individual_buffer_size-1) {
+				right_buffer[individual_buffer_size-1] = '\0';
+			} else {
+				right_buffer[right_buffer_index++] = original_string[i];
+			}
+			if (original_string[i] == '\0') {
+				break;
+			}
+		}
+	}
+	return 1;
+}
 
 int _irc_is_string_ip(char * ip) {
 	int i, is_separator, is_number;
@@ -93,21 +131,6 @@ int _irc_is_string_ip(char * ip) {
 		}
 	}
 	return 1;
-}
-
-unsigned char hex_digit( char ch )
-{
-    if(             ( '0' <= ch ) && ( ch <= '9' ) ) { ch -= '0'; }
-    else
-    {
-        if(         ( 'a' <= ch ) && ( ch <= 'f' ) ) { ch += 10 - 'a'; }
-        else
-        {
-            if(     ( 'A' <= ch ) && ( ch <= 'F' ) ) { ch += 10 - 'A'; }
-            else                                     { ch = 16; }
-        }
-    }
-    return ch;
 }
 
 int _irc_mac_to_binary(char * macStr, uint8_t * binary_mac) {

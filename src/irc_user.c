@@ -7,6 +7,8 @@ int irc_create_user(char * origin, char * user_name);
 int irc_destroy_user_by_name(char * user_name);
 int irc_destroy_user_by_origin(char * origin);
 int irc_check_user_by_origin(char * origin);
+char * irc_get_user_origin_by_id(int id);
+char * irc_get_user_name_by_origin(char * origin);
 
 // User Implementation
 
@@ -53,3 +55,27 @@ int irc_destroy_user_by_origin(char * origin) {
 	irc_destroy_node(node);
 	return 1;
 }
+
+char * irc_get_user_origin_by_id(int id) {
+	int this_id = 0;
+	irc_node * node = irc_root_node;
+	while (node) {
+		if (node->type == irc_user) {
+			if (this_id == id) {
+				return node->origin;
+			}
+			this_id++;
+		}
+		node = node->next;
+	}
+	return 0;
+}
+
+char * irc_get_user_name_by_origin(char * origin) {
+	irc_node * node = irc_search_node_by_origin(irc_user, origin);
+	if (!node) {
+		return 0;
+	}
+	return node->name;
+}
+

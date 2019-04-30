@@ -11,7 +11,7 @@ char user_input[128];
 int is_input_insert = 0;
 int flashing_indication = 0;
 
-#define SCREEN_DATA_LINE_COUNT	15
+#define SCREEN_DATA_LINE_COUNT	10
 
 typedef struct pipe_data_type {
 	int is_program_finished;
@@ -24,8 +24,16 @@ typedef struct pipe_data_type {
 	char origin_ip[32];
 	char target_mac[32];
 	char target_ip[32];
-	char screen_data[128][SCREEN_DATA_LINE_COUNT];
-	int screen_data_index;
+	char line_01[128];
+	char line_02[128];
+	char line_03[128];
+	char line_04[128];
+	char line_05[128];
+	char line_06[128];
+	char line_07[128];
+	char line_08[128];
+	char line_09[128];
+	char line_10[128];
 	int just_skip;
 	int is_waiting_server_origin;
 } pipe_data_type;
@@ -45,6 +53,7 @@ void update_screen() {
 	//clrscr();
 	// Header
 	printf("\n");
+	printf("######################################\n");
 	printf("| IRC Client | Time: ");
 	print_date();
 	printf("\nClient Address: ");
@@ -81,21 +90,21 @@ void update_screen() {
 	int i;
 	int height = irc_get_console_height();
 
-	for (i=0;i<=SCREEN_DATA_LINE_COUNT;i++) {
-		if (i+1 >= height) {
-			break;
-		}
-		if (i == SCREEN_DATA_LINE_COUNT) {
-			printf("                                          \n");
-		} else {
-			printf("%s\n", pdt->screen_data[i]);
-		}
-	}
+	printf("[%2d] %s\n", 1, pdt->line_01);
+	printf("[%2d] %s\n", 2, pdt->line_02);
+	printf("[%2d] %s\n", 3, pdt->line_03);
+	printf("[%2d] %s\n", 4, pdt->line_04);
+	printf("[%2d] %s\n", 5, pdt->line_05);
+	printf("[%2d] %s\n", 6, pdt->line_06);
+	printf("[%2d] %s\n", 7, pdt->line_07);
+	printf("[%2d] %s\n", 8, pdt->line_08);
+	printf("[%2d] %s\n", 9, pdt->line_09);
+	printf("[%2d] %s\n", 10, pdt->line_10);
 
 	printf("\n");
 
 	// User input
-	printf("\n\n");
+	printf("\n");
 	printf(" > ");
 
 	for(i=0;i<user_input_length;i++) {
@@ -262,7 +271,8 @@ int is_character_acceptable(char letter) {
 		letter == ')' ||
 		letter == '[' ||
 		letter == ']' ||
-		letter == ' ');
+		letter == ' ' ||
+		letter == '\'');
 	int is_number = (letter >= '0' && letter <= '9');
 	int is_letter = ((letter >= 'a' && letter <= 'z') || (letter >= 'A' && letter <= 'Z'));
 
@@ -317,10 +327,31 @@ int add_unimplemented_to_input() {
 }
 
 int add_line_to_screen(pipe_data_type * pdt, char * message) {
-	for (int i = 1 ; i < SCREEN_DATA_LINE_COUNT; i++) {
-		snprintf(pdt->screen_data[i-1], 127, "%s", pdt->screen_data[i]);
+	int i;
+	// Remove newlines
+	for (i=0;i<IRC_BUFFER_SIZE+32;i++) {
+		if (message[i] == '\0') {
+			break;
+		} else if ((message[i] == '\n' || message[i] == '\r') && message[i+1] == '\0') {
+			printf("Got newline at last!\n");
+			message[i] = '\0';
+			break;
+		} else if (message[i] == '\n' || message[i] == '\r') {
+			printf("Got newline!\n");
+			message[i] = ' ';
+		}
 	}
-	snprintf(pdt->screen_data[SCREEN_DATA_LINE_COUNT-1], 127, "%s", message);
+	snprintf(pdt->line_01, 127, "%s", pdt->line_02);
+	snprintf(pdt->line_02, 127, "%s", pdt->line_03);
+	snprintf(pdt->line_03, 127, "%s", pdt->line_04);
+	snprintf(pdt->line_04, 127, "%s", pdt->line_05);
+	snprintf(pdt->line_05, 127, "%s", pdt->line_06);
+	snprintf(pdt->line_06, 127, "%s", pdt->line_07);
+	snprintf(pdt->line_07, 127, "%s", pdt->line_08);
+	snprintf(pdt->line_08, 127, "%s", pdt->line_09);
+	snprintf(pdt->line_09, 127, "%s", pdt->line_10);
+
+	snprintf(pdt->line_10, 126, "%s", message);
 }
 
 
@@ -364,6 +395,7 @@ int handle_input(pipe_data_type * pdt) {
 			if (input == '[') {
 				input = getch();
 			}
+			/*
 			if (input == 'D') {
 				if (user_input_index > 0) {
 					user_input_index--;
@@ -375,6 +407,7 @@ int handle_input(pipe_data_type * pdt) {
 					update_screen();
 				}
 			}
+			*/
 		} else if (input == 50) {
 			is_input_insert = !is_input_insert;
 		} else if (input == 10) {
@@ -382,7 +415,7 @@ int handle_input(pipe_data_type * pdt) {
 			// send to server
 			snprintf(last_user_input, 128, "%s", user_input);
 			last_user_input[127] = '\0';
-			if (last_user_input[0] != '\0' && last_user_input[1] != '\0') {
+			if (last_user_input[0] != '\0') {
 				irc_send(last_user_input, pdt->interface_name, pdt->origin_mac, pdt->origin_ip, pdt->target_mac, pdt->target_ip);
 			}
 
@@ -390,7 +423,7 @@ int handle_input(pipe_data_type * pdt) {
 			user_input_index = 0;
 			user_input_length = 0;
 			user_input[0] = '\0';
-			//update_screen();
+			update_screen();
 		} else if (is_character_acceptable(input)) {
 			add_character_to_input(input);
 			update_screen();
@@ -400,8 +433,32 @@ int handle_input(pipe_data_type * pdt) {
 	}
 }
 
-int receive(char * message, int message_length, void * origin) {
-	printf("Client received %d bytes: %s\n", message_length, message);
+int receive(char * message, int message_length, void * v_origin) {
+	message_data_type * origin = (message_data_type *) v_origin;
+	if (message[0] == '/' && message[1] == 'i' && message[3] == 'a' && message[4] == 'm') {
+		if (
+			(pdt->target_mac[0] & 0xFF) == (origin->origin_mac[0] & 0xFF) &&
+			(pdt->target_mac[1] & 0xFF) == (origin->origin_mac[1] & 0xFF) &&
+			(pdt->target_mac[2] & 0xFF) == (origin->origin_mac[2] & 0xFF) &&
+			(pdt->target_mac[3] & 0xFF) == (origin->origin_mac[3] & 0xFF) &&
+			(pdt->target_mac[4] & 0xFF) == (origin->origin_mac[4] & 0xFF) &&
+			(pdt->target_mac[5] & 0xFF) == (origin->origin_mac[5] & 0xFF)
+		) {
+			// No need to change mac address
+			return 0;
+		}
+		add_line_to_screen(pdt, "Changed server mac address");
+		memcpy(pdt->target_mac, origin->origin_mac, 6);
+		pdt->target_mac[6] = '\0';
+		return 0;
+	}
+
+	if (message[0] != '<') {
+		// Do not receive any message without username, because that the server's purpose
+		return 0;
+	}
+	add_line_to_screen(pdt, message);
+	//printf("Client received %d bytes: %s\n", message_length, message);
 	if (irc_compare_two_strings(message, "/terminate-client", message_length)) {
 		irc_stop_server();
 		printf("The client was terminated remotely\n");
@@ -475,19 +532,26 @@ void set_default_input_for_addresses() {
 
 int main(int argn, char ** argc) {
 
+	srand ( time(NULL) );
 	pipe_data_type pdt_original;
 
 	pdt = &pdt_original;
 	pdt->is_program_finished = 0;
 	pdt->interface_id = -1;
 	pdt->send_message_buffer = 0;
-	pdt->screen_data_index = 0;
 	pdt->is_waiting_server_origin = 0;
 
 	snprintf(pdt->username, 32, "unnamed");
-	for (int i = 0 ; i < SCREEN_DATA_LINE_COUNT; i++) {
-		pdt->screen_data[i][0] = '\0';
-	}
+	pdt->line_01[0] = '\0';
+	pdt->line_02[0] = '\0';
+	pdt->line_03[0] = '\0';
+	pdt->line_04[0] = '\0';
+	pdt->line_05[0] = '\0';
+	pdt->line_06[0] = '\0';
+	pdt->line_07[0] = '\0';
+	pdt->line_08[0] = '\0';
+	pdt->line_09[0] = '\0';
+	pdt->line_10[0] = '\0';
 
 	pdt->just_skip = 1;
 	irc_start_timer(update_loop);

@@ -17,6 +17,7 @@
 
 #include <unistd.h> // exec
 #include <ifaddrs.h> // Interfaces disponiveis
+#include <time.h> // timing
 
 // Server Interface
 
@@ -73,11 +74,35 @@ typedef struct message_data_type {
 	void * func;
 } message_data_type;
 
+time_t irc_last_message_time, irc_current_message_time;
+char irc_last_message_start[8];
+
 int irc_on_content_received(message_data_type * msg_data, unsigned char * buffer, unsigned int buffer_size) {
 	if (buffer[0] != 'I' || buffer[1] != 'R' || buffer[2] != 'C') {
 		// Signature failed: not this protocol
 		return 0;
 	}
+
+	time(&irc_current_message_time);
+
+	double diff = difftime(irc_current_message_time, irc_last_message_time);
+	if (
+		(diff <= 0) &&
+		(buffer[0] & 0xFF) == (irc_last_message_start[0] & 0xFF) &&
+		(buffer[1] & 0xFF) == (irc_last_message_start[1] & 0xFF) &&
+		(buffer[2] & 0xFF) == (irc_last_message_start[2] & 0xFF) &&
+		(buffer[3] & 0xFF) == (irc_last_message_start[3] & 0xFF) &&
+		(buffer[4] & 0xFF) == (irc_last_message_start[4] & 0xFF) &&
+		(buffer[5] & 0xFF) == (irc_last_message_start[5] & 0xFF) &&
+		(buffer[6] & 0xFF) == (irc_last_message_start[6] & 0xFF) &&
+		(buffer[7] & 0xFF) == (irc_last_message_start[7] & 0xFF)
+	) {
+		// Stop duplicated messages (from loopback, if it happens)
+		return 0;
+	}
+	memcpy(irc_last_message_start, buffer, 8);
+	time(&irc_last_message_time);
+
 	int header_size = 3;
 	int actual_size = buffer_size-header_size;
 
@@ -239,17 +264,20 @@ int irc_server(char * interface, char * this_mac, int (*callback)(char *, int, v
 	irc_is_server_running = 1;
 	int is_broadcast, is_targeted, is_origin_self;
 
-	printf(
-		"Starting server at interface %s with MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
-		interface,
-		this_mac[0] & 0xFF,
-		this_mac[1] & 0xFF,
-		this_mac[2] & 0xFF,
-		this_mac[3] & 0xFF,
-		this_mac[4] & 0xFF,
-		this_mac[5] & 0xFF
-	);
+	if (DEBUG_SERVER) {
+		printf(
+			"Starting server at interface %s with MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
+			interface,
+			this_mac[0] & 0xFF,
+			this_mac[1] & 0xFF,
+			this_mac[2] & 0xFF,
+			this_mac[3] & 0xFF,
+			this_mac[4] & 0xFF,
+			this_mac[5] & 0xFF
+		);
+	}
 
+	time(&irc_last_message_time);
 	while (1) {
 		if (irc_is_server_running != 1) {
 			break;
